@@ -1,0 +1,70 @@
+@model B3ly.BLL.ViewModels.OrderVM
+@{ ViewData["Title"] = $"Order {Model.OrderNumber}"; }
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">Order @Model.OrderNumber</h2>
+        @{ var bc = Model.Status switch {
+            "Pending"    => "bg-warning text-dark",
+            "Processing" => "bg-info text-dark",
+            "Shipped"    => "bg-primary",
+            "Delivered"  => "bg-success",
+            "Cancelled"  => "bg-danger",
+            _            => "bg-secondary"
+        }; }
+        <span class="badge @bc fs-6">@Model.Status</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-center">Unit Price</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Items) {
+                                <tr>
+                                    <td>@item.ProductName</td>
+                                    <td class="text-center">@item.Quantity</td>
+                                    <td class="text-center">$@item.UnitPrice.ToString("F2")</td>
+                                    <td class="text-end">$@item.LineTotal.ToString("F2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Order Total:</td>
+                                <td class="text-end fw-bold text-primary fs-5">$@Model.TotalAmount.ToString("F2")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold">Order Info</h6>
+                    <dl class="mb-0">
+                        <dt class="text-muted small">Date</dt>
+                        <dd>@Model.OrderDate.ToString("MMMM dd, yyyy HH:mm")</dd>
+                        <dt class="text-muted small">Shipping Address</dt>
+                        <dd>@Model.ShippingAddress</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a asp-action="Index" class="btn btn-outline-secondary mt-4">
+        <i class="bi bi-arrow-left me-1"></i>Back to Orders
+    </a>
+</div>

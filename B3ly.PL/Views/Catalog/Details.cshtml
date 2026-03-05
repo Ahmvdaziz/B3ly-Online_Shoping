@@ -1,0 +1,57 @@
+@model B3ly.BLL.ViewModels.ProductVM
+@{ ViewData["Title"] = Model.Name; }
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-controller="Catalog" asp-action="Index">Shop</a></li>
+            <li class="breadcrumb-item">
+                <a asp-controller="Catalog" asp-action="Index" asp-route-categoryId="@Model.CategoryId">@Model.CategoryName</a>
+            </li>
+            <li class="breadcrumb-item active">@Model.Name</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <div class="col-md-5">
+            <img src="@(Model.ImageUrl ?? "https://placehold.co/600x600?text=Product")"
+                 class="img-fluid rounded shadow" alt="@Model.Name" />
+        </div>
+        <div class="col-md-7">
+            <span class="badge bg-primary mb-2">@Model.CategoryName</span>
+            <h1 class="fw-bold">@Model.Name</h1>
+            <p class="text-muted small mb-1">SKU: <code>@Model.SKU</code></p>
+            <h2 class="text-primary fw-bold my-3">$@Model.Price.ToString("F2")</h2>
+
+            @if (Model.StockQuantity > 10) {
+                <span class="badge bg-success fs-6 mb-3">In Stock</span>
+            } else if (Model.StockQuantity > 0) {
+                <span class="badge bg-warning text-dark fs-6 mb-3">Only @Model.StockQuantity left!</span>
+            } else {
+                <span class="badge bg-danger fs-6 mb-3">Out of Stock</span>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.Description)) {
+                <p class="text-secondary">@Model.Description</p>
+            }
+
+            @if (Model.StockQuantity > 0) {
+                <form asp-controller="Cart" asp-action="Add" method="post" class="d-flex gap-3 align-items-center mt-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@Model.ProductId" />
+                    <input type="number" name="qty" value="1" min="1" max="@Model.StockQuantity"
+                           class="form-control" style="width:90px" />
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-cart-plus me-2"></i>Add to Cart
+                    </button>
+                </form>
+            }
+
+            <hr class="my-4" />
+            <a asp-controller="Catalog" asp-action="Index" asp-route-categoryId="@Model.CategoryId"
+               class="text-decoration-none">
+                <i class="bi bi-arrow-left me-1"></i>Back to @Model.CategoryName
+            </a>
+        </div>
+    </div>
+</div>

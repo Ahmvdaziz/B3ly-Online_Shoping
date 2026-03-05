@@ -1,0 +1,232 @@
+@model B3ly.BLL.ViewModels.CheckoutVM
+@{ ViewData["Title"] = "Checkout"; }
+
+<style>
+    .payment-option-card {
+        cursor: pointer;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        transition: border-color .2s, box-shadow .2s, background .2s;
+        padding: 1rem 1.25rem;
+    }
+    .payment-option-card:hover { border-color: #0d6efd; }
+    .payment-option-card.selected {
+        border-color: #0d6efd;
+        background: #f0f5ff;
+        box-shadow: 0 0 0 3px rgba(13,110,253,.15);
+    }
+    .payment-option-card input[type=radio] { display: none; }
+    .address-option-card {
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        padding: .75rem 1rem;
+        cursor: pointer;
+        transition: border-color .2s, background .2s;
+        margin-bottom: .5rem;
+    }
+    .address-option-card:hover { border-color: #0d6efd; background: #f8f9ff; }
+    .address-option-card.selected { border-color: #0d6efd; background: #f0f5ff; }
+    .address-option-card input[type=radio] { display: none; }
+    .section-card { border: 0; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,.08); }
+    .section-header { font-weight: 700; font-size: 1rem; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+    .step-badge { background: #0d6efd; color: #fff; border-radius: 50%; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 700; flex-shrink: 0; }
+</style>
+
+<div class="container py-5" style="max-width:960px">
+    <h2 class="fw-bold mb-1"><i class="bi bi-bag-check me-2 text-primary"></i>Checkout</h2>
+    <p class="text-muted mb-4">Review your order and complete your purchase.</p>
+
+    <div class="row g-4">
+        <!-- LEFT: Address + Payment -->
+        <div class="col-lg-7">
+
+            <form asp-action="Checkout" method="post" id="checkoutForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ExistingAddressId" id="hidExistingId" />
+                <input type="hidden" asp-for="PaymentMethod" id="hidPaymentMethod" value="Cash" />
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3 rounded-3"></div>
+
+                <!-- ── Step 1: Shipping Address ── -->
+                <div class="card section-card mb-3">
+                    <div class="card-body p-4">
+                        <div class="section-header">
+                            <span class="step-badge">1</span>
+                            Shipping Address
+                        </div>
+
+                        @if (Model.SavedAddresses.Any())
+                        {
+                            <p class="text-muted small mb-3">Choose a saved address or enter a new one.</p>
+                            @foreach (var addr in Model.SavedAddresses)
+                            {
+                                <div class="address-option-card saved-addr-card" data-id="@addr.AddressId">
+                                    <input type="radio" name="_savedAddrChoice" value="@addr.AddressId" />
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-geo-alt-fill text-primary"></i>
+                                        <span>@addr.Display</span>
+                                        @if (addr.IsDefault) { <span class="badge bg-primary ms-auto">Default</span> }
+                                    </div>
+                                </div>
+                            }
+                            <div class="address-option-card saved-addr-card selected" data-id="">
+                                <input type="radio" name="_savedAddrChoice" value="" checked />
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-plus-circle-fill text-success"></i>
+                                    <span class="fw-semibold">Enter a new address</span>
+                                </div>
+                            </div>
+                        }
+
+                        <div id="newAddressSection" class="row g-3 mt-1">
+                            <div class="col-md-6">
+                                <label asp-for="Country" class="form-label fw-semibold small text-uppercase text-muted"></label>
+                                <input asp-for="Country" class="form-control" placeholder="e.g. Egypt" />
+                                <span asp-validation-for="Country" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="City" class="form-label fw-semibold small text-uppercase text-muted"></label>
+                                <input asp-for="City" class="form-control" placeholder="e.g. Cairo" />
+                                <span asp-validation-for="City" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-8">
+                                <label asp-for="Street" class="form-label fw-semibold small text-uppercase text-muted">Street</label>
+                                <input asp-for="Street" class="form-control" placeholder="e.g. 123 Main St" />
+                                <span asp-validation-for="Street" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Zip" class="form-label fw-semibold small text-uppercase text-muted">ZIP Code</label>
+                                <input asp-for="Zip" class="form-control" placeholder="e.g. 12345" />
+                                <span asp-validation-for="Zip" class="text-danger small"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Step 2: Payment Method ── -->
+                <div class="card section-card mb-4">
+                    <div class="card-body p-4">
+                        <div class="section-header">
+                            <span class="step-badge">2</span>
+                            Payment Method
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <div class="payment-option-card selected" id="optCash" onclick="selectPayment('Cash')">
+                                    <input type="radio" name="_paymentChoice" value="Cash" checked />
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-success bg-opacity-10 rounded-circle p-2">
+                                            <i class="bi bi-cash-coin fs-4 text-success"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">Cash on Delivery</div>
+                                            <div class="text-muted small">Pay when you receive</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="payment-option-card" id="optCard" onclick="selectPayment('Card')">
+                                    <input type="radio" name="_paymentChoice" value="Card" />
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-primary bg-opacity-10 rounded-circle p-2">
+                                            <i class="bi bi-credit-card-2-front fs-4 text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">Pay with Card</div>
+                                            <div class="text-muted small">Visa / Mastercard via Stripe</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-3" id="submitBtn">
+                    <i class="bi bi-lock-fill me-2"></i>
+                    <span id="submitLabel">Place Order — Cash on Delivery</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- RIGHT: Order Summary -->
+        <div class="col-lg-5">
+            <div class="card section-card sticky-top" style="top:1rem">
+                <div class="card-body p-4">
+                    <div class="section-header">
+                        <i class="bi bi-receipt text-primary fs-5"></i>
+                        Order Summary
+                    </div>
+                    <div class="mb-3">
+                        @foreach (var item in Model.Cart.Items)
+                        {
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="me-2">
+                                    <span class="fw-semibold small">@item.ProductName</span>
+                                    <span class="text-muted small d-block">Qty: @item.Quantity × $@item.UnitPrice.ToString("F2")</span>
+                                </div>
+                                <span class="fw-bold text-nowrap small">$@item.LineTotal.ToString("F2")</span>
+                            </div>
+                        }
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold text-muted">Subtotal</span>
+                        <span class="fw-bold">$@Model.Cart.Total.ToString("F2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1 mb-2">
+                        <span class="fw-semibold text-muted">Shipping</span>
+                        <span class="text-success fw-semibold">Free</span>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold fs-5">Total</span>
+                        <span class="fw-bold fs-4 text-primary">$@Model.Cart.Total.ToString("F2")</span>
+                    </div>
+                    <div class="mt-3 p-2 bg-light rounded-3 text-center">
+                        <small class="text-muted"><i class="bi bi-shield-check text-success me-1"></i>Secure checkout powered by Stripe</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// ── Address selection ──────────────────────────────────────────────────────
+document.querySelectorAll('.saved-addr-card').forEach(card => {
+    card.addEventListener('click', function () {
+        document.querySelectorAll('.saved-addr-card').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+        const radio = this.querySelector('input[type=radio]');
+        if (radio) radio.checked = true;
+
+        const sec = document.getElementById('newAddressSection');
+        const hid = document.getElementById('hidExistingId');
+        const val = this.dataset.id;
+        if (val === '' || val === undefined) {
+            sec.style.display = '';
+            hid.value = '';
+        } else {
+            sec.style.display = 'none';
+            hid.value = val;
+        }
+    });
+});
+
+// ── Payment method selection ───────────────────────────────────────────────
+function selectPayment(method) {
+    document.getElementById('optCash').classList.toggle('selected', method === 'Cash');
+    document.getElementById('optCard').classList.toggle('selected', method === 'Card');
+    document.getElementById('hidPaymentMethod').value = method;
+    const label = document.getElementById('submitLabel');
+    if (method === 'Card') {
+        label.textContent = 'Continue to Secure Payment';
+    } else {
+        label.textContent = 'Place Order \u2014 Cash on Delivery';
+    }
+}
+</script>
+}
