@@ -1,0 +1,214 @@
+@{ ViewData["Title"] = "AI Assistant"; Layout = "_Layout"; }
+
+<style>
+    .chat-wrapper      { height: calc(100vh - 130px); display: flex; flex-direction: column; background: #f8faff; }
+    .chat-header       { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #2563eb 100%); color: #fff; padding: 1rem 1.5rem; display: flex; align-items: center; gap: .85rem; }
+    .chat-messages     { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: .85rem; scroll-behavior: smooth; }
+    .msg-row           { display: flex; align-items: flex-end; gap: .5rem; }
+    .msg-row.user      { flex-direction: row-reverse; }
+    .msg-bubble        { max-width: 70%; padding: .75rem 1.1rem; border-radius: 18px; line-height: 1.7; font-size: .93rem; white-space: pre-wrap; word-break: break-word; }
+    .msg-bubble.user   { background: #0d6efd; color: #fff; border-bottom-right-radius: 5px; }
+    .msg-bubble.ai     { background: #fff; color: #1e293b; border-bottom-left-radius: 5px; box-shadow: 0 1px 8px rgba(0,0,0,.08); }
+    .msg-avatar        { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .9rem; flex-shrink: 0; }
+    .msg-time          { font-size: .68rem; color: #94a3b8; margin-top: .25rem; }
+    .msg-time.end      { text-align: right; }
+    .typing-indicator  { display: flex; align-items: center; gap: 5px; padding: .75rem 1.1rem; }
+    .dot               { width: 9px; height: 9px; background: #94a3b8; border-radius: 50%; animation: dotBounce 1.4s infinite ease-in-out; }
+    .dot:nth-child(2)  { animation-delay: .2s; }
+    .dot:nth-child(3)  { animation-delay: .4s; }
+    @@keyframes dotBounce { 0%,80%,100%{transform:translateY(0);opacity:.5} 40%{transform:translateY(-7px);opacity:1} }
+    .chat-suggestions  { padding: .6rem 1.25rem .4rem; display: flex; gap: .5rem; flex-wrap: wrap; background: #f8faff; border-top: 1px solid #e9eef6; }
+    .suggestion-chip   { border: 1.5px solid #dde4f0; border-radius: 20px; padding: .3rem 1rem; font-size: .8rem; cursor: pointer; background: #fff; color: #475569; transition: all .18s; white-space: nowrap; }
+    .suggestion-chip:hover { border-color: #0d6efd; background: #eff6ff; color: #0d6efd; }
+    .chat-input-bar    { border-top: 1px solid #e2e8f0; padding: .875rem 1.25rem .65rem; background: #fff; }
+    .chat-input        { border-radius: 26px; border: 2px solid #e2e8f0; padding: .6rem 1.25rem; font-size: .93rem; transition: border-color .2s, box-shadow .2s; }
+    .chat-input:focus  { border-color: #0d6efd; box-shadow: 0 0 0 4px rgba(13,110,253,.1); outline: none; }
+    .btn-send          { border-radius: 50%; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; font-size: 1.05rem; transition: transform .15s; }
+    .btn-send:active   { transform: scale(.9); }
+    .online-dot        { width: 10px; height: 10px; background: #4ade80; border-radius: 50%; border: 2px solid #fff; position: absolute; bottom: 2px; right: 2px; }
+</style>
+
+<div class="container-fluid p-0">
+    <div class="chat-wrapper">
+
+        <!-- ── Header ──────────────────────────────────────────────────── -->
+        <div class="chat-header">
+            <div class="position-relative">
+                <div class="msg-avatar bg-white bg-opacity-20">
+                    <i class="bi bi-robot text-white fs-5"></i>
+                </div>
+                <span class="online-dot"></span>
+            </div>
+            <div>
+                <div class="fw-bold fs-5 lh-1">B3ly AI Assistant</div>
+                <div style="font-size:.78rem;opacity:.75;margin-top:.2rem">
+                    <i class="bi bi-cpu me-1"></i>phi3 via Ollama &bull; Online
+                </div>
+            </div>
+            <button class="btn btn-sm btn-outline-light ms-auto rounded-pill px-3" id="btnClear">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>New Chat
+            </button>
+        </div>
+
+        <!-- ── Messages ─────────────────────────────────────────────────── -->
+        <div class="chat-messages" id="chatMessages">
+            <div class="msg-row" id="welcomeRow">
+                <div class="msg-avatar bg-primary text-white">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div>
+                    <div class="msg-bubble ai">
+                        👋 Hi! I'm the <strong>B3ly AI Assistant</strong>, powered by phi3 running locally on your machine.<br><br>
+                        I can help you with product recommendations, order questions, payment options, and anything else about our store.<br><br>
+                        <strong>What can I help you with today?</strong>
+                    </div>
+                    <div class="msg-time">Just now</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Suggested questions ──────────────────────────────────────── -->
+        <div class="chat-suggestions" id="suggestions">
+            <span class="text-muted small me-1 align-self-center" style="font-size:.75rem">Try:</span>
+            <button class="suggestion-chip" onclick="useSuggestion('What products do you recommend for a home office?')">🖥 Home office picks</button>
+            <button class="suggestion-chip" onclick="useSuggestion('How do I track my order?')">📦 Track my order</button>
+            <button class="suggestion-chip" onclick="useSuggestion('What payment methods are available?')">💳 Payment methods</button>
+            <button class="suggestion-chip" onclick="useSuggestion('Can I return a product I bought?')">🔄 Return policy</button>
+            <button class="suggestion-chip" onclick="useSuggestion('What are the best deals right now?')">🏷 Best deals</button>
+        </div>
+
+        <!-- ── Input bar ────────────────────────────────────────────────── -->
+        <div class="chat-input-bar">
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" class="form-control chat-input flex-grow-1"
+                       id="userInput" placeholder="Ask me anything about B3ly…" autocomplete="off" />
+                <button class="btn btn-primary btn-send" id="btnSend" title="Send">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+            <div class="text-center mt-2">
+                <small class="text-muted" style="font-size:.7rem">
+                    <i class="bi bi-shield-lock me-1"></i>Runs entirely on your local machine &mdash; no data is sent to the cloud
+                </small>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const messagesEl = document.getElementById('chatMessages');
+const inputEl    = document.getElementById('userInput');
+const sendBtn    = document.getElementById('btnSend');
+const clearBtn   = document.getElementById('btnClear');
+const suggestEl  = document.getElementById('suggestions');
+
+function nowTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function buildRow(text, role) {
+    const isUser = role === 'user';
+    const row = document.createElement('div');
+    row.className = 'msg-row' + (isUser ? ' user' : '');
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar ' + (isUser ? 'bg-primary bg-opacity-15 text-primary' : 'bg-primary text-white');
+    avatar.innerHTML  = isUser ? '<i class="bi bi-person-fill"></i>' : '<i class="bi bi-robot"></i>';
+
+    const wrapper = document.createElement('div');
+    const bubble  = document.createElement('div');
+    bubble.className = 'msg-bubble ' + role;
+    bubble.textContent = text;
+
+    const time = document.createElement('div');
+    time.className = 'msg-time' + (isUser ? ' end' : '');
+    time.textContent = nowTime();
+
+    wrapper.appendChild(bubble);
+    wrapper.appendChild(time);
+
+    if (isUser) { row.appendChild(wrapper); row.appendChild(avatar); }
+    else        { row.appendChild(avatar);  row.appendChild(wrapper); }
+
+    return row;
+}
+
+function appendMessage(text, role) {
+    const row = buildRow(text, role);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function showTyping() {
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    row.id = 'typingRow';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar bg-primary text-white';
+    avatar.innerHTML  = '<i class="bi bi-robot"></i>';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble ai p-0';
+    bubble.innerHTML  = '<div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function hideTyping() {
+    document.getElementById('typingRow')?.remove();
+}
+
+async function sendQuestion(question) {
+    if (!question.trim() || sendBtn.disabled) return;
+
+    suggestEl.style.display = 'none';
+    appendMessage(question, 'user');
+    inputEl.value = '';
+    sendBtn.disabled = true;
+    inputEl.disabled = true;
+    showTyping();
+
+    try {
+        const res  = await fetch('/AI/Ask', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ question })
+        });
+        const data = await res.json();
+        hideTyping();
+        appendMessage(res.ok ? data.answer : ('⚠️ ' + (data.error ?? 'Something went wrong.')), 'ai');
+    } catch {
+        hideTyping();
+        appendMessage('⚠️ Could not reach the AI service. Make sure Ollama is running on your machine.', 'ai');
+    } finally {
+        sendBtn.disabled = false;
+        inputEl.disabled = false;
+        inputEl.focus();
+    }
+}
+
+function useSuggestion(text) {
+    inputEl.value = text;
+    sendQuestion(text);
+}
+
+sendBtn.addEventListener('click',  () => sendQuestion(inputEl.value));
+inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(inputEl.value); }
+});
+
+clearBtn.addEventListener('click', () => {
+    messagesEl.querySelectorAll('.msg-row:not(#welcomeRow)').forEach(r => r.remove());
+    suggestEl.style.display = '';
+    inputEl.focus();
+});
+
+inputEl.focus();
+</script>
+}

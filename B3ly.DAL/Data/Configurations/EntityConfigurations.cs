@@ -4,18 +4,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace B3ly.DAL.Data.Configurations
 {
-    public class UserConfiguration : IEntityTypeConfiguration<User>
-    {
-        public void Configure(EntityTypeBuilder<User> builder)
-        {
-            builder.HasKey(u => u.Id);
-            builder.HasIndex(u => u.Email).IsUnique();
-            builder.Property(u => u.Email).IsRequired().HasMaxLength(256);
-            builder.Property(u => u.FullName).IsRequired().HasMaxLength(200);
-            builder.Property(u => u.Role).IsRequired().HasMaxLength(20);
-        }
-    }
-
     public class AddressConfiguration : IEntityTypeConfiguration<Address>
     {
         public void Configure(EntityTypeBuilder<Address> builder)

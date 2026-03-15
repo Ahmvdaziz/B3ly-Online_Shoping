@@ -39,7 +39,7 @@ namespace B3ly.PL.Controllers
         public async Task<IActionResult> Details(int id)
         {
             var user  = _auth.GetCurrentUser()!;
-            var order = await _orders.GetOrderDetailsAsync(id, user.Role == "Admin" ? null : (int?)user.Id);
+            var order = await _orders.GetOrderDetailsAsync(id, user.Role == "Admin" ? null : user.Id);
             if (order == null) return NotFound();
             return View(order);
         }
@@ -210,8 +210,8 @@ namespace B3ly.PL.Controllers
             {
                 var order = new Order
                 {
-                    UserId            = userId.Value,
-                    ShippingAddressId = addressId.Value,
+                    UserId            = userId!,
+                    ShippingAddressId = addressId!.Value,
                     OrderNumber       = $"B3LY-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                     Status            = OrderStatus.Pending,
                     OrderDate         = DateTime.UtcNow,

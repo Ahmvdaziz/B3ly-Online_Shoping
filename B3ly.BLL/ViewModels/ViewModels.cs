@@ -32,7 +32,7 @@ namespace B3ly.BLL.ViewModels
 
     public class SessionUserVM
     {
-        public int Id { get; set; }
+        public string Id { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
@@ -193,5 +193,15 @@ namespace B3ly.BLL.ViewModels
         public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
         public bool HasPrevious => CurrentPage > 1;
         public bool HasNext => CurrentPage < TotalPages;
+    }
+
+    // ── AI / RAG ─────────────────────────────────────────────────────────────
+    public class ProductContextVM
+    {
+        public string  Name          { get; set; } = string.Empty;
+        public decimal Price         { get; set; }
+        public string  CategoryName  { get; set; } = string.Empty;
+        public int     StockQuantity { get; set; }
+        public string? Description   { get; set; }
     }
 }

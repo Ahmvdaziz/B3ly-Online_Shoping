@@ -1,30 +1,32 @@
 using B3ly.BLL.ViewModels;
 using Microsoft.AspNetCore.Http;
-using System.Text.Json;
+using System.Security.Claims;
 
 namespace B3ly.BLL.Services
 {
     public class AuthService
     {
-        private const string SessionKey = "B3ly_User";
         private readonly IHttpContextAccessor _http;
         public AuthService(IHttpContextAccessor http) => _http = http;
 
-        private ISession Session => _http.HttpContext!.Session;
-
-        public void SignIn(SessionUserVM user) =>
-            Session.SetString(SessionKey, JsonSerializer.Serialize(user));
-
-        public void SignOut() => Session.Remove(SessionKey);
+        private ClaimsPrincipal? Principal => _http.HttpContext?.User;
 
         public SessionUserVM? GetCurrentUser()
         {
-            var json = Session.GetString(SessionKey);
-            return json == null ? null : JsonSerializer.Deserialize<SessionUserVM>(json);
+            var principal = Principal;
+            if (principal?.Identity?.IsAuthenticated != true) return null;
+
+            return new SessionUserVM
+            {
+                Id       = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
+                FullName = principal.FindFirstValue("FullName") ?? string.Empty,
+                Email    = principal.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
+                Role     = principal.FindFirstValue(ClaimTypes.Role) ?? string.Empty
+            };
         }
 
-        public bool IsAuthenticated => GetCurrentUser() != null;
-        public bool IsAdmin => GetCurrentUser()?.Role == "Admin";
-        public bool IsCustomer => GetCurrentUser()?.Role == "Customer";
+        public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated == true;
+        public bool IsAdmin         => Principal?.IsInRole("Admin") == true;
+        public bool IsCustomer      => Principal?.IsInRole("Customer") == true;
     }
 }

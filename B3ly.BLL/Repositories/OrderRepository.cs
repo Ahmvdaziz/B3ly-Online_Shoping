@@ -11,7 +11,7 @@ namespace B3ly.BLL.Repositories
         private readonly ApplicationDbContext _db;
         public OrderRepository(ApplicationDbContext db) => _db = db;
 
-        public async Task<IEnumerable<OrderVM>> GetUserOrdersAsync(int userId) =>
+        public async Task<IEnumerable<OrderVM>> GetUserOrdersAsync(string userId) =>
             await _db.Orders
                 .Include(o => o.ShippingAddress)
                 .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
@@ -20,14 +20,14 @@ namespace B3ly.BLL.Repositories
                 .Select(o => ToOrderVM(o))
                 .ToListAsync();
 
-        public async Task<OrderVM?> GetOrderDetailsAsync(int orderId, int? userId = null)
+        public async Task<OrderVM?> GetOrderDetailsAsync(int orderId, string? userId = null)
         {
             var q = _db.Orders
                 .Include(o => o.ShippingAddress)
                 .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
                 .Where(o => o.OrderId == orderId);
 
-            if (userId.HasValue) q = q.Where(o => o.UserId == userId.Value);
+            if (userId != null) q = q.Where(o => o.UserId == userId);
             var o = await q.FirstOrDefaultAsync();
             return o == null ? null : ToOrderVM(o);
         }
@@ -43,7 +43,7 @@ namespace B3ly.BLL.Repositories
                     OrderId        = o.OrderId,
                     OrderNumber    = o.OrderNumber,
                     CustomerName   = o.User.FullName,
-                    CustomerEmail  = o.User.Email,
+                    CustomerEmail  = o.User.Email ?? string.Empty,
                     Status         = o.Status.ToString(),
                     StatusValue    = (int)o.Status,
                     OrderDate      = o.OrderDate,

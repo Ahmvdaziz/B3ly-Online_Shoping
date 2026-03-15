@@ -118,5 +118,32 @@ namespace B3ly.BLL.Repositories
             if (excludeId.HasValue) q = q.Where(p => p.ProductId != excludeId.Value);
             return await q.AnyAsync();
         }
+
+        public async Task<IEnumerable<ProductContextVM>> GetForAIContextAsync(string? keyword = null, int limit = 20)
+        {
+            var query = _db.Products
+                .Include(p => p.Category)
+                .Where(p => p.IsActive)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+                query = query.Where(p =>
+                    p.Name.Contains(keyword) ||
+                    p.Category.Name.Contains(keyword) ||
+                    (p.Description != null && p.Description.Contains(keyword)));
+
+            return await query
+                .OrderBy(p => p.Name)
+                .Take(limit)
+                .Select(p => new ProductContextVM
+                {
+                    Name          = p.Name,
+                    Price         = p.Price,
+                    CategoryName  = p.Category.Name,
+                    StockQuantity = p.StockQuantity,
+                    Description   = p.Description
+                })
+                .ToListAsync();
+        }
     }
 }

@@ -3,14 +3,6 @@ using B3ly.DAL.Models;
 
 namespace B3ly.BLL.Interfaces
 {
-    public interface IUserRepository
-    {
-        Task<User?> GetByEmailAsync(string email);
-        Task<User?> GetByIdAsync(int id);
-        Task AddAsync(User user);
-        Task<bool> EmailExistsAsync(string email);
-    }
-
     public interface IProductRepository
     {
         Task<PaginatedList<ProductVM>> GetProductsAsync(int? categoryId, string? search, string? sort, int page, int pageSize);
@@ -21,6 +13,12 @@ namespace B3ly.BLL.Interfaces
         Task UpdateAsync(Product product);
         Task DeleteAsync(int id);
         Task<bool> SKUExistsAsync(string sku, int? excludeId = null);
+
+        /// <summary>
+        /// Returns a compact product list for AI context building (RAG).
+        /// When <paramref name="keyword"/> is provided, results are filtered by name, category, or description.
+        /// </summary>
+        Task<IEnumerable<ProductContextVM>> GetForAIContextAsync(string? keyword = null, int limit = 20);
     }
 
     public interface ICategoryRepository
@@ -35,8 +33,8 @@ namespace B3ly.BLL.Interfaces
 
     public interface IOrderRepository
     {
-        Task<IEnumerable<OrderVM>> GetUserOrdersAsync(int userId);
-        Task<OrderVM?> GetOrderDetailsAsync(int orderId, int? userId = null);
+        Task<IEnumerable<OrderVM>> GetUserOrdersAsync(string userId);
+        Task<OrderVM?> GetOrderDetailsAsync(int orderId, string? userId = null);
         Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync();
         Task AddAsync(Order order);
         Task UpdateStatusAsync(int orderId, OrderStatus status);
@@ -44,8 +42,8 @@ namespace B3ly.BLL.Interfaces
 
     public interface IAddressRepository
     {
-        Task<IEnumerable<AddressVM>> GetUserAddressesAsync(int userId);
-        Task<Address?> GetByIdAsync(int id, int userId);
+        Task<IEnumerable<AddressVM>> GetUserAddressesAsync(string userId);
+        Task<Address?> GetByIdAsync(int id, string userId);
         Task AddAsync(Address address);
     }
 }

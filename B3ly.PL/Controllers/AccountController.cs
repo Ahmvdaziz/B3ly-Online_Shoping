@@ -1,27 +1,26 @@
-using B3ly.BLL.Interfaces;
-using B3ly.BLL.Services;
 using B3ly.BLL.ViewModels;
 using B3ly.DAL.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace B3ly.PL.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly IUserRepository _users;
-        private readonly AuthService _auth;
+        private readonly UserManager<AppUser> _userManager;
+        private readonly SignInManager<AppUser> _signInManager;
 
-        public AccountController(IUserRepository users, AuthService auth)
+        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager)
         {
-            _users = users;
-            _auth = auth;
+            _userManager   = userManager;
+            _signInManager = signInManager;
         }
 
         // ── Register ─────────────────────────────────────────────────────────
         [HttpGet]
         public IActionResult Register()
         {
-            if (_auth.IsAuthenticated) return RedirectToAction("Index", "Home");
+            if (User.Identity?.IsAuthenticated == true) return RedirectToAction("Index", "Home");
             return View();
         }
 
@@ -30,22 +29,24 @@ namespace B3ly.PL.Controllers
         {
             if (!ModelState.IsValid) return View(vm);
 
-            if (await _users.EmailExistsAsync(vm.Email))
+            var user = new AppUser
             {
-                ModelState.AddModelError("Email", "This email is already registered.");
+                FullName = vm.FullName,
+                UserName = vm.Email.ToLower().Trim(),
+                Email    = vm.Email.ToLower().Trim()
+            };
+
+            var result = await _userManager.CreateAsync(user, vm.Password);
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError(string.Empty, error.Description);
                 return View(vm);
             }
 
-            var user = new User
-            {
-                FullName     = vm.FullName,
-                Email        = vm.Email.ToLower().Trim(),
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(vm.Password),
-                Role         = "Customer"
-            };
-            await _users.AddAsync(user);
+            await _userManager.AddToRoleAsync(user, "Customer");
+            await _signInManager.SignInAsync(user, isPersistent: false);
 
-            _auth.SignIn(new SessionUserVM { Id = user.Id, FullName = user.FullName, Email = user.Email, Role = user.Role });
             TempData["Success"] = "Account created successfully. Welcome!";
             return RedirectToAction("Index", "Home");
         }
@@ -54,7 +55,7 @@ namespace B3ly.PL.Controllers
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
         {
-            if (_auth.IsAuthenticated) return RedirectToAction("Index", "Home");
+            if (User.Identity?.IsAuthenticated == true) return RedirectToAction("Index", "Home");
             ViewBag.ReturnUrl = returnUrl;
             return View();
         }
@@ -64,29 +65,30 @@ namespace B3ly.PL.Controllers
         {
             if (!ModelState.IsValid) { ViewBag.ReturnUrl = returnUrl; return View(vm); }
 
-            var user = await _users.GetByEmailAsync(vm.Email.ToLower().Trim());
-            if (user == null || !BCrypt.Net.BCrypt.Verify(vm.Password, user.PasswordHash))
+            var result = await _signInManager.PasswordSignInAsync(
+                vm.Email.ToLower().Trim(), vm.Password, vm.RememberMe, lockoutOnFailure: false);
+
+            if (!result.Succeeded)
             {
                 ModelState.AddModelError("", "Invalid email or password.");
                 ViewBag.ReturnUrl = returnUrl;
                 return View(vm);
             }
 
-            _auth.SignIn(new SessionUserVM { Id = user.Id, FullName = user.FullName, Email = user.Email, Role = user.Role });
-
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                 return Redirect(returnUrl);
 
-            return user.Role == "Admin"
+            var user = await _userManager.FindByNameAsync(vm.Email.ToLower().Trim());
+            return user != null && await _userManager.IsInRoleAsync(user, "Admin")
                 ? RedirectToAction("Index", "Products", new { area = "Admin" })
                 : RedirectToAction("Index", "Home");
         }
 
         // ── Logout ────────────────────────────────────────────────────────────
         [HttpPost, ValidateAntiForgeryToken]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            _auth.SignOut();
+            await _signInManager.SignOutAsync();
             return RedirectToAction("Index", "Home");
         }
 
