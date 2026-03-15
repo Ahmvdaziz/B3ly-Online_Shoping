@@ -20,7 +20,21 @@ namespace B3ly.PL.Areas.Admin.Controllers
             _categories = categories;
         }
 
-        public async Task<IActionResult> Index() => View(await _products.GetAllAsync());
+        public async Task<IActionResult> Index(string? search, int? categoryId, int page = 1)
+        {
+            const int pageSize = 15;
+            var products = await _products.GetAdminProductsAsync(categoryId, search, page, pageSize);
+            var categories = await _categories.GetAllAsync();
+            var vm = new AdminProductIndexVM
+            {
+                Products           = products,
+                Categories         = categories,
+                SearchQuery        = search,
+                SelectedCategoryId = categoryId,
+                CurrentPage        = page
+            };
+            return View(vm);
+        }
 
         public async Task<IActionResult> Create()
         {
@@ -33,6 +47,9 @@ namespace B3ly.PL.Areas.Admin.Controllers
         {
             if (await _products.SKUExistsAsync(vm.SKU))
                 ModelState.AddModelError("SKU", "SKU already exists.");
+
+            if (vm.CategoryId != 0 && await _products.ProductNameExistsInCategoryAsync(vm.Name, vm.CategoryId))
+                ModelState.AddModelError("Name", "A product with this name already exists in the selected category.");
 
             if (!ModelState.IsValid) { await PopulateCategoriesAsync(); return View(vm); }
 
@@ -76,6 +93,9 @@ namespace B3ly.PL.Areas.Admin.Controllers
             if (await _products.SKUExistsAsync(vm.SKU, id))
                 ModelState.AddModelError("SKU", "SKU already exists.");
 
+            if (vm.CategoryId != 0 && await _products.ProductNameExistsInCategoryAsync(vm.Name, vm.CategoryId, id))
+                ModelState.AddModelError("Name", "A product with this name already exists in the selected category.");
+
             if (!ModelState.IsValid) { await PopulateCategoriesAsync(); return View(vm); }
 
             var p = await _products.GetEntityByIdAsync(id);
@@ -91,8 +111,10 @@ namespace B3ly.PL.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
-            await _products.DeleteAsync(id);
-            TempData["Success"] = "Product deleted.";
+            bool softDeleted = await _products.DeleteAsync(id);
+            TempData[softDeleted ? "Error" : "Success"] = softDeleted
+                ? "Product is used in existing orders and cannot be permanently deleted. It has been marked as inactive instead."
+                : "Product deleted.";
             return RedirectToAction("Index");
         }
 

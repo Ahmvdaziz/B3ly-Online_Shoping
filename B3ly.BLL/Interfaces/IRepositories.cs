@@ -11,8 +11,14 @@ namespace B3ly.BLL.Interfaces
         Task<IEnumerable<ProductVM>> GetAllAsync();
         Task AddAsync(Product product);
         Task UpdateAsync(Product product);
-        Task DeleteAsync(int id);
+        /// <summary>
+        /// Soft-deletes (IsActive=false) if the product is referenced by orders; otherwise hard-deletes.
+        /// Returns true if soft-deleted, false if hard-deleted.
+        /// </summary>
+        Task<bool> DeleteAsync(int id);
         Task<bool> SKUExistsAsync(string sku, int? excludeId = null);
+        Task<bool> ProductNameExistsInCategoryAsync(string name, int categoryId, int? excludeId = null);
+        Task<PaginatedList<ProductVM>> GetAdminProductsAsync(int? categoryId, string? search, int page, int pageSize);
 
         /// <summary>
         /// Returns a compact product list for AI context building (RAG).
@@ -29,13 +35,20 @@ namespace B3ly.BLL.Interfaces
         Task AddAsync(Category category);
         Task UpdateAsync(Category category);
         Task DeleteAsync(int id);
+        Task<bool> NameExistsAsync(string name, int? excludeId = null);
+        /// <summary>Returns true if the category has any direct products.</summary>
+        Task<bool> HasProductsAsync(int id);
+        /// <summary>Returns true if the category has any direct subcategories.</summary>
+        Task<bool> HasSubCategoriesAsync(int id);
+        /// <summary>Returns all descendant category IDs (recursive), not including <paramref name="id"/> itself.</summary>
+        Task<IEnumerable<int>> GetDescendantIdsAsync(int id);
     }
 
     public interface IOrderRepository
     {
         Task<IEnumerable<OrderVM>> GetUserOrdersAsync(string userId);
         Task<OrderVM?> GetOrderDetailsAsync(int orderId, string? userId = null);
-        Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync();
+        Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync(string? statusFilter = null, string? search = null);
         Task AddAsync(Order order);
         Task UpdateStatusAsync(int orderId, OrderStatus status);
     }

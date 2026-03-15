@@ -14,7 +14,14 @@ namespace B3ly.PL.Areas.Admin.Controllers
         private readonly ICategoryRepository _categories;
         public CategoriesController(ICategoryRepository categories) => _categories = categories;
 
-        public async Task<IActionResult> Index() => View(await _categories.GetAllAsync());
+        public async Task<IActionResult> Index(string? search)
+        {
+            var categories = await _categories.GetAllAsync();
+            if (!string.IsNullOrWhiteSpace(search))
+                categories = categories.Where(c => c.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+            ViewBag.Search = search;
+            return View(categories);
+        }
 
         public async Task<IActionResult> Create()
         {
@@ -26,6 +33,12 @@ namespace B3ly.PL.Areas.Admin.Controllers
         public async Task<IActionResult> Create(CreateCategoryVM vm)
         {
             if (!ModelState.IsValid) { await PopulateParentsAsync(); return View(vm); }
+            if (await _categories.NameExistsAsync(vm.Name))
+            {
+                ModelState.AddModelError("Name", "A category with this name already exists.");
+                await PopulateParentsAsync();
+                return View(vm);
+            }
             await _categories.AddAsync(new Category { Name = vm.Name, ParentCategoryId = vm.ParentCategoryId });
             TempData["Success"] = "Category created successfully.";
             return RedirectToAction("Index");
@@ -43,6 +56,12 @@ namespace B3ly.PL.Areas.Admin.Controllers
         public async Task<IActionResult> Edit(int id, CreateCategoryVM vm)
         {
             if (!ModelState.IsValid) { await PopulateParentsAsync(id); return View(vm); }
+            if (await _categories.NameExistsAsync(vm.Name, id))
+            {
+                ModelState.AddModelError("Name", "A category with this name already exists.");
+                await PopulateParentsAsync(id);
+                return View(vm);
+            }
             var cat = await _categories.GetEntityByIdAsync(id);
             if (cat == null) return NotFound();
             cat.Name             = vm.Name;
@@ -55,6 +74,11 @@ namespace B3ly.PL.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
+            if (await _categories.HasProductsAsync(id))
+            {
+                TempData["Error"] = "Cannot delete this category because it contains products.";
+                return RedirectToAction("Index");
+            }
             await _categories.DeleteAsync(id);
             TempData["Success"] = "Category deleted.";
             return RedirectToAction("Index");

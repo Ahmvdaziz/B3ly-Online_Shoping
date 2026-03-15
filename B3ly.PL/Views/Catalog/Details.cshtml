@@ -1,5 +1,10 @@
 @model B3ly.BLL.ViewModels.ProductVM
-@{ ViewData["Title"] = Model.Name; }
+@using B3ly.BLL.Services
+@inject AuthService Auth
+@{ 
+    ViewData["Title"] = Model.Name;
+    var isAdmin = Auth.GetCurrentUser()?.Role == "Admin";
+}
 
 <div class="container py-4">
     <nav aria-label="breadcrumb" class="mb-4">
@@ -35,7 +40,7 @@
                 <p class="text-secondary">@Model.Description</p>
             }
 
-            @if (Model.StockQuantity > 0) {
+            @if (!isAdmin && Model.StockQuantity > 0) {
                 <form asp-controller="Cart" asp-action="Add" method="post" class="d-flex gap-3 align-items-center mt-3">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="productId" value="@Model.ProductId" />

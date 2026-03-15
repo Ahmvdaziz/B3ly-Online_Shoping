@@ -2,7 +2,14 @@
 @{ ViewData["Title"] = "Categories"; }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div></div>
+    <form method="get" id="catFilterForm" class="d-flex gap-2">
+        <input type="text" name="search" id="catSearchInput" value="@ViewBag.Search"
+               class="form-control form-control-sm" style="width:220px" placeholder="Search by name…"
+               autocomplete="off" />
+        @if (!string.IsNullOrEmpty(ViewBag.Search as string)) {
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Clear</a>
+        }
+    </form>
     <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Category</a>
 </div>
 
@@ -31,7 +38,25 @@
                         </td>
                     </tr>
                 }
+                @if (!Model.Any()) {
+                    <tr><td colspan="5" class="text-center text-muted py-4">No categories found.</td></tr>
+                }
             </tbody>
         </table>
     </div>
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    var form = document.getElementById('catFilterForm');
+    var searchInput = document.getElementById('catSearchInput');
+    var debounceTimer;
+
+    searchInput.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () { form.submit(); }, 400);
+    });
+})();
+</script>
+}

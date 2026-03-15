@@ -144,6 +144,15 @@ namespace B3ly.BLL.ViewModels
     }
 
     // ── Admin ─────────────────────────────────────────────────────────────────
+    public class AdminProductIndexVM
+    {
+        public PaginatedList<ProductVM> Products { get; set; } = new();
+        public IEnumerable<CategoryVM> Categories { get; set; } = new List<CategoryVM>();
+        public string? SearchQuery { get; set; }
+        public int? SelectedCategoryId { get; set; }
+        public int CurrentPage { get; set; } = 1;
+    }
+
     public class CreateProductVM
     {
         [Required] public string Name { get; set; } = string.Empty;
@@ -175,6 +184,13 @@ namespace B3ly.BLL.ViewModels
         public decimal TotalAmount { get; set; }
         public string ShippingAddress { get; set; } = string.Empty;
         public List<OrderItemVM> Items { get; set; } = new();
+    }
+
+    public class AdminOrderIndexVM
+    {
+        public IEnumerable<AdminOrderVM> Orders { get; set; } = new List<AdminOrderVM>();
+        public string? StatusFilter { get; set; }
+        public string? SearchQuery { get; set; }
     }
 
     public class UpdateOrderStatusVM

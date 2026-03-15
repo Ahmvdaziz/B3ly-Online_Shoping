@@ -5,6 +5,8 @@ namespace B3ly.DAL.Models
         public int OrderItemId { get; set; }
         public int OrderId { get; set; }
         public int ProductId { get; set; }
+        // Stored at order time for historical accuracy
+        public string ProductName { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
         public int Quantity { get; set; }
         public decimal LineTotal { get; set; }
