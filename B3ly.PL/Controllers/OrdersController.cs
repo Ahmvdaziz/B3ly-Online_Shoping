@@ -158,11 +158,12 @@ namespace B3ly.PL.Controllers
                     var p = productEntities[item.ProductId];
                     _db.OrderItems.Add(new OrderItem
                     {
-                        OrderId   = order.OrderId,
-                        ProductId = item.ProductId,
-                        UnitPrice = item.UnitPrice,
-                        Quantity  = item.Quantity,
-                        LineTotal = item.LineTotal
+                        OrderId     = order.OrderId,
+                        ProductId   = item.ProductId,
+                        ProductName = p.Name,
+                        UnitPrice   = item.UnitPrice,
+                        Quantity    = item.Quantity,
+                        LineTotal   = item.LineTotal
                     });
                     p.StockQuantity -= item.Quantity;
                     _db.Products.Update(p);
@@ -225,11 +226,12 @@ namespace B3ly.PL.Controllers
                     var p = productEntities[item.ProductId];
                     _db.OrderItems.Add(new OrderItem
                     {
-                        OrderId   = order.OrderId,
-                        ProductId = item.ProductId,
-                        UnitPrice = item.UnitPrice,
-                        Quantity  = item.Quantity,
-                        LineTotal = item.LineTotal
+                        OrderId     = order.OrderId,
+                        ProductId   = item.ProductId,
+                        ProductName = p.Name,
+                        UnitPrice   = item.UnitPrice,
+                        Quantity    = item.Quantity,
+                        LineTotal   = item.LineTotal
                     });
                     p.StockQuantity -= item.Quantity;
                     _db.Products.Update(p);

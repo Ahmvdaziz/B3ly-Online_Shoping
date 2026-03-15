@@ -13,7 +13,16 @@ namespace B3ly.PL.Areas.Admin.Controllers
         private readonly IOrderRepository _orders;
         public OrdersController(IOrderRepository orders) => _orders = orders;
 
-        public async Task<IActionResult> Index() => View(await _orders.GetAllOrdersAsync());
+        public async Task<IActionResult> Index(string? status, string? search)
+        {
+            var orders = await _orders.GetAllOrdersAsync(status, search);
+            return View(new AdminOrderIndexVM
+            {
+                Orders       = orders,
+                StatusFilter = status,
+                SearchQuery  = search
+            });
+        }
 
         public async Task<IActionResult> Details(int id)
         {

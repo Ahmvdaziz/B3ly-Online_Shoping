@@ -33,6 +33,8 @@ namespace B3ly.DAL.Data.Configurations
         {
             builder.Property(p => p.Price).HasColumnType("decimal(18,2)");
             builder.HasIndex(p => p.SKU).IsUnique();
+            // Product name must be unique within the same category
+            builder.HasIndex(p => new { p.CategoryId, p.Name }).IsUnique();
         }
     }
 
@@ -59,6 +61,7 @@ namespace B3ly.DAL.Data.Configurations
         {
             builder.Property(oi => oi.UnitPrice).HasColumnType("decimal(18,2)");
             builder.Property(oi => oi.LineTotal).HasColumnType("decimal(18,2)");
+            builder.Property(oi => oi.ProductName).HasMaxLength(200).HasDefaultValue("");
         }
     }
 }

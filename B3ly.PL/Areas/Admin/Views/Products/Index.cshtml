@@ -1,7 +1,21 @@
-@model IEnumerable<B3ly.BLL.ViewModels.ProductVM>
+@model B3ly.BLL.ViewModels.AdminProductIndexVM
 @{ ViewData["Title"] = "Products"; }
 
-<div class="d-flex justify-content-end mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <form method="get" id="filterForm" class="d-flex gap-2 flex-wrap">
+        <input type="text" name="search" id="searchInput" value="@Model.SearchQuery"
+               class="form-control form-control-sm" style="width:200px" placeholder="Search by name…"
+               autocomplete="off" />
+        <select name="categoryId" id="categorySelect" class="form-select form-select-sm" style="width:180px">
+            <option value="">All Categories</option>
+            @foreach (var cat in Model.Categories) {
+                <option value="@cat.CategoryId" selected="@(Model.SelectedCategoryId == cat.CategoryId)">@cat.Name</option>
+            }
+        </select>
+        @if (!string.IsNullOrEmpty(Model.SearchQuery) || Model.SelectedCategoryId.HasValue) {
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Clear</a>
+        }
+    </form>
     <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Product</a>
 </div>
 
@@ -16,7 +30,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var p in Model) {
+                @foreach (var p in Model.Products.Items) {
                     <tr>
                         <td>
                             <div class="d-flex align-items-center gap-2">
@@ -40,14 +54,56 @@
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <form asp-action="Delete" asp-route-id="@p.ProductId" method="post" class="d-inline"
-                                  onsubmit="return confirm('Delete @p.Name?')">
+                                  data-product-name="@p.Name"
+                                  onsubmit="return confirm('Delete ' + this.dataset.productName + '?')">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                             </form>
                         </td>
                     </tr>
                 }
+                @if (!Model.Products.Items.Any()) {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No products found.</td></tr>
+                }
             </tbody>
         </table>
     </div>
 </div>
+
+@if (Model.Products.TotalPages > 1) {
+    <nav class="mt-3 d-flex justify-content-center">
+        <ul class="pagination pagination-sm mb-0">
+            @for (int i = 1; i <= Model.Products.TotalPages; i++) {
+                <li class="page-item @(i == Model.Products.CurrentPage ? "active" : "")">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-search="@Model.SearchQuery"
+                       asp-route-categoryId="@Model.SelectedCategoryId"
+                       asp-route-page="@i">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@section Scripts {
+<script>
+(function () {
+    var form = document.getElementById('filterForm');
+    var searchInput = document.getElementById('searchInput');
+    var categorySelect = document.getElementById('categorySelect');
+    var debounceTimer;
+
+    function submitForm() {
+        form.submit();
+    }
+
+    searchInput.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(submitForm, 400);
+    });
+
+    categorySelect.addEventListener('change', submitForm);
+})();
+</script>
+}
