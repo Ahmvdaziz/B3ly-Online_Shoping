@@ -54,7 +54,8 @@
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <form asp-action="Delete" asp-route-id="@p.ProductId" method="post" class="d-inline"
-                                  onsubmit="return confirm('Delete @p.Name?')">
+                                  data-product-name="@p.Name"
+                                  onsubmit="return confirm('Delete ' + this.dataset.productName + '?')">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                             </form>

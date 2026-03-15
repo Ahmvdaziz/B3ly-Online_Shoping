@@ -61,6 +61,8 @@ namespace B3ly.BLL.ViewModels
         public int? ParentCategoryId { get; set; }
         public string? ParentCategoryName { get; set; }
         public int ProductCount { get; set; }
+        public int SubCategoryCount { get; set; }
+        public bool IsLeaf => SubCategoryCount == 0;
     }
 
     public class CatalogIndexVM

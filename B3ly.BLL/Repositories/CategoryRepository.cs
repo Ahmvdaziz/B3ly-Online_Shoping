@@ -19,7 +19,8 @@ namespace B3ly.BLL.Repositories
                     Name               = c.Name,
                     ParentCategoryId   = c.ParentCategoryId,
                     ParentCategoryName = c.ParentCategory != null ? c.ParentCategory.Name : null,
-                    ProductCount       = c.Products.Count
+                    ProductCount       = c.Products.Count,
+                    SubCategoryCount   = c.SubCategories.Count
                 }).OrderBy(c => c.Name).ToListAsync();
 
         public async Task<CategoryVM?> GetByIdAsync(int id) =>
@@ -31,7 +32,8 @@ namespace B3ly.BLL.Repositories
                     Name               = c.Name,
                     ParentCategoryId   = c.ParentCategoryId,
                     ParentCategoryName = c.ParentCategory != null ? c.ParentCategory.Name : null,
-                    ProductCount       = c.Products.Count
+                    ProductCount       = c.Products.Count,
+                    SubCategoryCount   = c.SubCategories.Count
                 }).FirstOrDefaultAsync();
 
         public async Task<Category?> GetEntityByIdAsync(int id) => await _db.Categories.FindAsync(id);

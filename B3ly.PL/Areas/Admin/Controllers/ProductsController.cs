@@ -120,9 +120,25 @@ namespace B3ly.PL.Areas.Admin.Controllers
 
         private async Task PopulateCategoriesAsync()
         {
-            var cats = (await _categories.GetAllAsync())
-                .Select(c => new SelectListItem { Value = c.CategoryId.ToString(), Text = c.Name });
-            ViewBag.Categories = new SelectList(cats, "Value", "Text");
+            var allCats = (await _categories.GetAllAsync()).ToList();
+            var items = new List<SelectListItem>();
+
+            // Leaf root categories (no parent, no children) — selectable standalone
+            foreach (var cat in allCats.Where(c => c.ParentCategoryId == null && c.IsLeaf).OrderBy(c => c.Name))
+                items.Add(new SelectListItem { Value = cat.CategoryId.ToString(), Text = cat.Name });
+
+            // Non-leaf root categories become optgroups; only their leaf children are selectable
+            foreach (var parent in allCats.Where(c => c.ParentCategoryId == null && !c.IsLeaf).OrderBy(c => c.Name))
+            {
+                var group = new SelectListGroup { Name = parent.Name };
+                foreach (var sub in allCats.Where(c => c.ParentCategoryId == parent.CategoryId).OrderBy(c => c.Name))
+                {
+                    var text = sub.IsLeaf ? sub.Name : $"{sub.Name} (has subcategories)";
+                    items.Add(new SelectListItem { Value = sub.CategoryId.ToString(), Text = text, Group = group, Disabled = !sub.IsLeaf });
+                }
+            }
+
+            ViewBag.Categories = items;
         }
     }
 }

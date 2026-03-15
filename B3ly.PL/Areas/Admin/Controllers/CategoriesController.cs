@@ -62,6 +62,27 @@ namespace B3ly.PL.Areas.Admin.Controllers
                 await PopulateParentsAsync(id);
                 return View(vm);
             }
+
+            // Prevent self-referencing
+            if (vm.ParentCategoryId.HasValue && vm.ParentCategoryId.Value == id)
+            {
+                ModelState.AddModelError("ParentCategoryId", "A category cannot be its own parent.");
+                await PopulateParentsAsync(id);
+                return View(vm);
+            }
+
+            // Prevent circular references (setting a descendant as parent)
+            if (vm.ParentCategoryId.HasValue)
+            {
+                var descendants = await _categories.GetDescendantIdsAsync(id);
+                if (descendants.Contains(vm.ParentCategoryId.Value))
+                {
+                    ModelState.AddModelError("ParentCategoryId", "Cannot set a descendant category as the parent (circular reference).");
+                    await PopulateParentsAsync(id);
+                    return View(vm);
+                }
+            }
+
             var cat = await _categories.GetEntityByIdAsync(id);
             if (cat == null) return NotFound();
             cat.Name             = vm.Name;
@@ -74,9 +95,9 @@ namespace B3ly.PL.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await _categories.HasProductsAsync(id))
+            if (await _categories.HasProductsAsync(id) || await _categories.HasSubCategoriesAsync(id))
             {
-                TempData["Error"] = "Cannot delete this category because it contains products.";
+                TempData["Error"] = "Cannot delete this category because it contains products or subcategories.";
                 return RedirectToAction("Index");
             }
             await _categories.DeleteAsync(id);
@@ -86,8 +107,12 @@ namespace B3ly.PL.Areas.Admin.Controllers
 
         private async Task PopulateParentsAsync(int? excludeId = null)
         {
+            IEnumerable<int> descendants = excludeId.HasValue
+                ? await _categories.GetDescendantIdsAsync(excludeId.Value)
+                : Enumerable.Empty<int>();
+
             var cats = (await _categories.GetAllAsync())
-                       .Where(c => excludeId == null || c.CategoryId != excludeId)
+                       .Where(c => excludeId == null || (c.CategoryId != excludeId.Value && !descendants.Contains(c.CategoryId)))
                        .Select(c => new SelectListItem { Value = c.CategoryId.ToString(), Text = c.Name });
             ViewBag.Parents = new SelectList(cats, "Value", "Text");
         }
