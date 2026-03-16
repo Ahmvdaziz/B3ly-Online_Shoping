@@ -32,11 +32,26 @@ namespace B3ly.BLL.Repositories
             return o == null ? null : ToOrderVM(o);
         }
 
-        public async Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync() =>
-            await _db.Orders
+        public async Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync(string? search = null, DateTime? from = null, DateTime? to = null)
+        {
+            var query = _db.Orders
                 .Include(o => o.User)
                 .Include(o => o.ShippingAddress)
-                .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+                .Include(o => o.OrderItems)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+                query = query.Where(o => o.OrderNumber.Contains(search) ||
+                                         o.User.Email!.Contains(search) ||
+                                         o.User.FullName.Contains(search));
+
+            if (from.HasValue)
+                query = query.Where(o => o.OrderDate >= from.Value);
+
+            if (to.HasValue)
+                query = query.Where(o => o.OrderDate <= to.Value.AddDays(1));
+
+            return await query
                 .OrderByDescending(o => o.OrderDate)
                 .Select(o => new AdminOrderVM
                 {
@@ -52,12 +67,13 @@ namespace B3ly.BLL.Repositories
                     Items = o.OrderItems.Select(oi => new OrderItemVM
                     {
                         ProductId   = oi.ProductId,
-                        ProductName = oi.Product.Name,
+                        ProductName = oi.ProductName,
                         UnitPrice   = oi.UnitPrice,
                         Quantity    = oi.Quantity,
                         LineTotal   = oi.LineTotal
                     }).ToList()
                 }).ToListAsync();
+        }
 
         public async Task AddAsync(Order order)
         {
@@ -82,7 +98,7 @@ namespace B3ly.BLL.Repositories
             Items = o.OrderItems.Select(oi => new OrderItemVM
             {
                 ProductId   = oi.ProductId,
-                ProductName = oi.Product?.Name ?? "",
+                ProductName = oi.ProductName,
                 UnitPrice   = oi.UnitPrice,
                 Quantity    = oi.Quantity,
                 LineTotal   = oi.LineTotal

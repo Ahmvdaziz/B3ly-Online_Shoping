@@ -15,11 +15,9 @@ namespace B3ly.BLL.Repositories
             await _db.Categories
                 .Select(c => new CategoryVM
                 {
-                    CategoryId         = c.CategoryId,
-                    Name               = c.Name,
-                    ParentCategoryId   = c.ParentCategoryId,
-                    ParentCategoryName = c.ParentCategory != null ? c.ParentCategory.Name : null,
-                    ProductCount       = c.Products.Count
+                    CategoryId   = c.CategoryId,
+                    Name         = c.Name,
+                    ProductCount = c.Products.Count
                 }).OrderBy(c => c.Name).ToListAsync();
 
         public async Task<CategoryVM?> GetByIdAsync(int id) =>
@@ -27,11 +25,9 @@ namespace B3ly.BLL.Repositories
                 .Where(c => c.CategoryId == id)
                 .Select(c => new CategoryVM
                 {
-                    CategoryId         = c.CategoryId,
-                    Name               = c.Name,
-                    ParentCategoryId   = c.ParentCategoryId,
-                    ParentCategoryName = c.ParentCategory != null ? c.ParentCategory.Name : null,
-                    ProductCount       = c.Products.Count
+                    CategoryId   = c.CategoryId,
+                    Name         = c.Name,
+                    ProductCount = c.Products.Count
                 }).FirstOrDefaultAsync();
 
         public async Task<Category?> GetEntityByIdAsync(int id) => await _db.Categories.FindAsync(id);
@@ -53,5 +49,9 @@ namespace B3ly.BLL.Repositories
             var c = await _db.Categories.FindAsync(id);
             if (c != null) { _db.Categories.Remove(c); await _db.SaveChangesAsync(); }
         }
+
+        public async Task<bool> HasProductsAsync(int id) =>
+            await _db.Products.AnyAsync(p => p.CategoryId == id);
     }
 }
+

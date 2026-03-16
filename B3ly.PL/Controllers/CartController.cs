@@ -21,6 +21,8 @@ namespace B3ly.PL.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Add(int productId, int qty = 1)
         {
+            if (User.IsInRole("Admin")) return Forbid();
+
             var product = await _products.GetByIdAsync(productId);
             if (product == null) return NotFound();
 

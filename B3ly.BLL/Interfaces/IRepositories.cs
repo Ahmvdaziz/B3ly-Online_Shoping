@@ -5,7 +5,8 @@ namespace B3ly.BLL.Interfaces
 {
     public interface IProductRepository
     {
-        Task<PaginatedList<ProductVM>> GetProductsAsync(int? categoryId, string? search, string? sort, int page, int pageSize);
+        Task<PaginatedList<ProductVM>> GetProductsAsync(int? categoryId, string? search, string? sort, int page, int pageSize,
+            decimal? minPrice = null, decimal? maxPrice = null, bool includeInactive = false);
         Task<ProductVM?> GetByIdAsync(int id);
         Task<Product?> GetEntityByIdAsync(int id);
         Task<IEnumerable<ProductVM>> GetAllAsync();
@@ -13,6 +14,7 @@ namespace B3ly.BLL.Interfaces
         Task UpdateAsync(Product product);
         Task DeleteAsync(int id);
         Task<bool> SKUExistsAsync(string sku, int? excludeId = null);
+        Task<bool> NameExistsInCategoryAsync(string name, int categoryId, int? excludeId = null);
 
         /// <summary>
         /// Returns a compact product list for AI context building (RAG).
@@ -29,13 +31,15 @@ namespace B3ly.BLL.Interfaces
         Task AddAsync(Category category);
         Task UpdateAsync(Category category);
         Task DeleteAsync(int id);
+        /// <summary>Returns true if the category has products (safe-delete guard).</summary>
+        Task<bool> HasProductsAsync(int id);
     }
 
     public interface IOrderRepository
     {
         Task<IEnumerable<OrderVM>> GetUserOrdersAsync(string userId);
         Task<OrderVM?> GetOrderDetailsAsync(int orderId, string? userId = null);
-        Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync();
+        Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync(string? search = null, DateTime? from = null, DateTime? to = null);
         Task AddAsync(Order order);
         Task UpdateStatusAsync(int orderId, OrderStatus status);
     }

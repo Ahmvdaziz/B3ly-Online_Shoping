@@ -20,7 +20,24 @@ namespace B3ly.PL.Areas.Admin.Controllers
             _categories = categories;
         }
 
-        public async Task<IActionResult> Index() => View(await _products.GetAllAsync());
+        public async Task<IActionResult> Index(
+            string? search, int? categoryId, decimal? minPrice, decimal? maxPrice,
+            string? sort, int page = 1)
+        {
+            const int pageSize = 20;
+            var result = await _products.GetProductsAsync(
+                categoryId, search, sort, page, pageSize,
+                minPrice, maxPrice, includeInactive: true);
+
+            ViewBag.Search     = search;
+            ViewBag.CategoryId = categoryId;
+            ViewBag.MinPrice   = minPrice;
+            ViewBag.MaxPrice   = maxPrice;
+            ViewBag.Sort       = sort;
+            ViewBag.Categories = new SelectList(await _categories.GetAllAsync(), "CategoryId", "Name", categoryId);
+
+            return View(result);
+        }
 
         public async Task<IActionResult> Create()
         {
@@ -33,6 +50,9 @@ namespace B3ly.PL.Areas.Admin.Controllers
         {
             if (await _products.SKUExistsAsync(vm.SKU))
                 ModelState.AddModelError("SKU", "SKU already exists.");
+
+            if (vm.CategoryId > 0 && await _products.NameExistsInCategoryAsync(vm.Name, vm.CategoryId))
+                ModelState.AddModelError("Name", "A product with this name already exists in the selected category.");
 
             if (!ModelState.IsValid) { await PopulateCategoriesAsync(); return View(vm); }
 
@@ -56,7 +76,7 @@ namespace B3ly.PL.Areas.Admin.Controllers
         {
             var p = await _products.GetEntityByIdAsync(id);
             if (p == null) return NotFound();
-            await PopulateCategoriesAsync();
+            await PopulateCategoriesAsync(p.CategoryId);
             return View(new CreateProductVM
             {
                 Name          = p.Name,
@@ -76,7 +96,10 @@ namespace B3ly.PL.Areas.Admin.Controllers
             if (await _products.SKUExistsAsync(vm.SKU, id))
                 ModelState.AddModelError("SKU", "SKU already exists.");
 
-            if (!ModelState.IsValid) { await PopulateCategoriesAsync(); return View(vm); }
+            if (vm.CategoryId > 0 && await _products.NameExistsInCategoryAsync(vm.Name, vm.CategoryId, id))
+                ModelState.AddModelError("Name", "A product with this name already exists in the selected category.");
+
+            if (!ModelState.IsValid) { await PopulateCategoriesAsync(vm.CategoryId); return View(vm); }
 
             var p = await _products.GetEntityByIdAsync(id);
             if (p == null) return NotFound();
@@ -92,15 +115,20 @@ namespace B3ly.PL.Areas.Admin.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             await _products.DeleteAsync(id);
-            TempData["Success"] = "Product deleted.";
+            TempData["Success"] = "Product deactivated.";
             return RedirectToAction("Index");
         }
 
-        private async Task PopulateCategoriesAsync()
+        private async Task PopulateCategoriesAsync(int? selectedId = null)
         {
             var cats = (await _categories.GetAllAsync())
-                .Select(c => new SelectListItem { Value = c.CategoryId.ToString(), Text = c.Name });
-            ViewBag.Categories = new SelectList(cats, "Value", "Text");
+                .Select(c => new SelectListItem
+                {
+                    Value    = c.CategoryId.ToString(),
+                    Text     = c.Name,
+                    Selected = c.CategoryId == selectedId
+                }).ToList();
+            ViewBag.Categories = cats;
         }
     }
 }

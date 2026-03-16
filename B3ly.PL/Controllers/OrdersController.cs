@@ -48,6 +48,8 @@ namespace B3ly.PL.Controllers
         [HttpGet]
         public async Task<IActionResult> Checkout()
         {
+            if (_auth.IsAdmin) return Forbid();
+
             var cart = _cart.GetCart();
             if (!cart.Items.Any()) return RedirectToAction("Index", "Cart");
 
@@ -61,6 +63,8 @@ namespace B3ly.PL.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Checkout(CheckoutVM vm)
         {
+            if (_auth.IsAdmin) return Forbid();
+
             var cart = _cart.GetCart();
             if (!cart.Items.Any()) return RedirectToAction("Index", "Cart");
 
@@ -141,6 +145,9 @@ namespace B3ly.PL.Controllers
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
+                // Recalculate total using live prices from DB
+                var liveTotal = cart.Items.Sum(i => productEntities[i.ProductId].Price * i.Quantity);
+
                 var order = new Order
                 {
                     UserId            = userId,
@@ -148,7 +155,7 @@ namespace B3ly.PL.Controllers
                     OrderNumber       = $"B3LY-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                     Status            = OrderStatus.Pending,
                     OrderDate         = DateTime.UtcNow,
-                    TotalAmount       = cart.Total
+                    TotalAmount       = liveTotal
                 };
                 _db.Orders.Add(order);
                 await _db.SaveChangesAsync();
@@ -156,13 +163,15 @@ namespace B3ly.PL.Controllers
                 foreach (var item in cart.Items)
                 {
                     var p = productEntities[item.ProductId];
+                    var livePrice = p.Price; // Always use current DB price
                     _db.OrderItems.Add(new OrderItem
                     {
-                        OrderId   = order.OrderId,
-                        ProductId = item.ProductId,
-                        UnitPrice = item.UnitPrice,
-                        Quantity  = item.Quantity,
-                        LineTotal = item.LineTotal
+                        OrderId     = order.OrderId,
+                        ProductId   = item.ProductId,
+                        ProductName = item.ProductName,
+                        UnitPrice   = livePrice,
+                        Quantity    = item.Quantity,
+                        LineTotal   = livePrice * item.Quantity
                     });
                     p.StockQuantity -= item.Quantity;
                     _db.Products.Update(p);
@@ -186,6 +195,8 @@ namespace B3ly.PL.Controllers
         [HttpGet]
         public async Task<IActionResult> CompleteStripeOrder()
         {
+            if (_auth.IsAdmin) return Forbid();
+
             var userId    = _auth.GetCurrentUser()?.Id;
             var addressId = HttpContext.Session.GetInt32("B3ly_PendingAddr");
             var cart      = _cart.GetCart();
@@ -208,6 +219,9 @@ namespace B3ly.PL.Controllers
             using var tx = await _db.Database.BeginTransactionAsync();
             try
             {
+                // Recalculate total using live prices from DB
+                var liveTotal = cart.Items.Sum(i => productEntities[i.ProductId].Price * i.Quantity);
+
                 var order = new Order
                 {
                     UserId            = userId!,
@@ -215,7 +229,7 @@ namespace B3ly.PL.Controllers
                     OrderNumber       = $"B3LY-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                     Status            = OrderStatus.Pending,
                     OrderDate         = DateTime.UtcNow,
-                    TotalAmount       = cart.Total
+                    TotalAmount       = liveTotal
                 };
                 _db.Orders.Add(order);
                 await _db.SaveChangesAsync();
@@ -223,13 +237,15 @@ namespace B3ly.PL.Controllers
                 foreach (var item in cart.Items)
                 {
                     var p = productEntities[item.ProductId];
+                    var livePrice = p.Price; // Always use current DB price
                     _db.OrderItems.Add(new OrderItem
                     {
-                        OrderId   = order.OrderId,
-                        ProductId = item.ProductId,
-                        UnitPrice = item.UnitPrice,
-                        Quantity  = item.Quantity,
-                        LineTotal = item.LineTotal
+                        OrderId     = order.OrderId,
+                        ProductId   = item.ProductId,
+                        ProductName = item.ProductName,
+                        UnitPrice   = livePrice,
+                        Quantity    = item.Quantity,
+                        LineTotal   = livePrice * item.Quantity
                     });
                     p.StockQuantity -= item.Quantity;
                     _db.Products.Update(p);

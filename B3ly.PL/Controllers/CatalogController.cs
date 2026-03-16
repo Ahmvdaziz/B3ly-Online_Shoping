@@ -15,10 +15,10 @@ namespace B3ly.PL.Controllers
             _categories = categories;
         }
 
-        public async Task<IActionResult> Index(int? categoryId, string? q, string? sort, int page = 1)
+        public async Task<IActionResult> Index(int? categoryId, string? q, string? sort, decimal? minPrice, decimal? maxPrice, int page = 1)
         {
             const int pageSize = 12;
-            var result     = await _products.GetProductsAsync(categoryId, q, sort, page, pageSize);
+            var result     = await _products.GetProductsAsync(categoryId, q, sort, page, pageSize, minPrice, maxPrice);
             var categories = await _categories.GetAllAsync();
 
             return View(new CatalogIndexVM
@@ -28,6 +28,8 @@ namespace B3ly.PL.Controllers
                 SelectedCategoryId= categoryId,
                 SearchQuery       = q,
                 Sort              = sort,
+                MinPrice          = minPrice,
+                MaxPrice          = maxPrice,
                 CurrentPage       = result.CurrentPage,
                 TotalPages        = result.TotalPages,
                 TotalCount        = result.TotalCount,

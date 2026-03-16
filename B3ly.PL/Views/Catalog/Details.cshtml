@@ -35,7 +35,7 @@
                 <p class="text-secondary">@Model.Description</p>
             }
 
-            @if (Model.StockQuantity > 0) {
+            @if (Model.StockQuantity > 0 && !User.IsInRole("Admin")) {
                 <form asp-controller="Cart" asp-action="Add" method="post" class="d-flex gap-3 align-items-center mt-3">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="productId" value="@Model.ProductId" />

@@ -13,7 +13,13 @@ namespace B3ly.PL.Areas.Admin.Controllers
         private readonly IOrderRepository _orders;
         public OrdersController(IOrderRepository orders) => _orders = orders;
 
-        public async Task<IActionResult> Index() => View(await _orders.GetAllOrdersAsync());
+        public async Task<IActionResult> Index(string? search, DateTime? from, DateTime? to)
+        {
+            ViewBag.Search = search;
+            ViewBag.From   = from?.ToString("yyyy-MM-dd");
+            ViewBag.To     = to?.ToString("yyyy-MM-dd");
+            return View(await _orders.GetAllOrdersAsync(search, from, to));
+        }
 
         public async Task<IActionResult> Details(int id)
         {

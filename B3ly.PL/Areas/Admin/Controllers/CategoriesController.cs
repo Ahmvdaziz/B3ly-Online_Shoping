@@ -3,7 +3,6 @@ using B3ly.BLL.ViewModels;
 using B3ly.DAL.Models;
 using B3ly.PL.Filters;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace B3ly.PL.Areas.Admin.Controllers
 {
@@ -16,17 +15,13 @@ namespace B3ly.PL.Areas.Admin.Controllers
 
         public async Task<IActionResult> Index() => View(await _categories.GetAllAsync());
 
-        public async Task<IActionResult> Create()
-        {
-            await PopulateParentsAsync();
-            return View(new CreateCategoryVM());
-        }
+        public IActionResult Create() => View(new CreateCategoryVM());
 
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CreateCategoryVM vm)
         {
-            if (!ModelState.IsValid) { await PopulateParentsAsync(); return View(vm); }
-            await _categories.AddAsync(new Category { Name = vm.Name, ParentCategoryId = vm.ParentCategoryId });
+            if (!ModelState.IsValid) return View(vm);
+            await _categories.AddAsync(new Category { Name = vm.Name });
             TempData["Success"] = "Category created successfully.";
             return RedirectToAction("Index");
         }
@@ -35,18 +30,16 @@ namespace B3ly.PL.Areas.Admin.Controllers
         {
             var cat = await _categories.GetEntityByIdAsync(id);
             if (cat == null) return NotFound();
-            await PopulateParentsAsync(id);
-            return View(new CreateCategoryVM { Name = cat.Name, ParentCategoryId = cat.ParentCategoryId });
+            return View(new CreateCategoryVM { Name = cat.Name });
         }
 
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, CreateCategoryVM vm)
         {
-            if (!ModelState.IsValid) { await PopulateParentsAsync(id); return View(vm); }
+            if (!ModelState.IsValid) return View(vm);
             var cat = await _categories.GetEntityByIdAsync(id);
             if (cat == null) return NotFound();
-            cat.Name             = vm.Name;
-            cat.ParentCategoryId = vm.ParentCategoryId;
+            cat.Name = vm.Name;
             await _categories.UpdateAsync(cat);
             TempData["Success"] = "Category updated.";
             return RedirectToAction("Index");
@@ -55,17 +48,14 @@ namespace B3ly.PL.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
+            if (await _categories.HasProductsAsync(id))
+            {
+                TempData["Error"] = "Cannot delete this category because it contains products.";
+                return RedirectToAction("Index");
+            }
             await _categories.DeleteAsync(id);
             TempData["Success"] = "Category deleted.";
             return RedirectToAction("Index");
-        }
-
-        private async Task PopulateParentsAsync(int? excludeId = null)
-        {
-            var cats = (await _categories.GetAllAsync())
-                       .Where(c => excludeId == null || c.CategoryId != excludeId)
-                       .Select(c => new SelectListItem { Value = c.CategoryId.ToString(), Text = c.Name });
-            ViewBag.Parents = new SelectList(cats, "Value", "Text");
         }
     }
 }

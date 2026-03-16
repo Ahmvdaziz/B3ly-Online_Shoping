@@ -1,6 +1,30 @@
 @model IEnumerable<B3ly.BLL.ViewModels.AdminOrderVM>
 @{ ViewData["Title"] = "Orders"; }
 
+<form asp-action="Index" method="get" class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label small fw-semibold">Search</label>
+                <input name="search" value="@ViewBag.Search" class="form-control form-control-sm"
+                       placeholder="Order #, customer name or email…" />
+            </div>
+            <div class="col-6 col-sm-3 col-md-2">
+                <label class="form-label small fw-semibold">From</label>
+                <input name="from" type="date" value="@ViewBag.From" class="form-control form-control-sm" />
+            </div>
+            <div class="col-6 col-sm-3 col-md-2">
+                <label class="form-label small fw-semibold">To</label>
+                <input name="to" type="date" value="@ViewBag.To" class="form-control form-control-sm" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm ms-1">Clear</a>
+            </div>
+        </div>
+    </div>
+</form>
+
 <div class="card border-0 shadow-sm">
     <div class="table-responsive">
         <table class="table align-middle mb-0">
@@ -34,6 +58,9 @@
                                class="btn btn-sm btn-outline-primary">Manage</a>
                         </td>
                     </tr>
+                }
+                @if (!Model.Any()) {
+                    <tr><td colspan="6" class="text-center text-muted py-4">No orders match the current filters.</td></tr>
                 }
             </tbody>
         </table>

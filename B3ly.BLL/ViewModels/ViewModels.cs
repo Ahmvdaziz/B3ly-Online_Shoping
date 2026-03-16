@@ -58,9 +58,8 @@ namespace B3ly.BLL.ViewModels
     {
         public int CategoryId { get; set; }
         public string Name { get; set; } = string.Empty;
-        public int? ParentCategoryId { get; set; }
-        public string? ParentCategoryName { get; set; }
         public int ProductCount { get; set; }
+        public int? ParentCategoryId { get; set; }
     }
 
     public class CatalogIndexVM
@@ -70,6 +69,8 @@ namespace B3ly.BLL.ViewModels
         public int? SelectedCategoryId { get; set; }
         public string? SearchQuery { get; set; }
         public string? Sort { get; set; }
+        public decimal? MinPrice { get; set; }
+        public decimal? MaxPrice { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public int TotalCount { get; set; }

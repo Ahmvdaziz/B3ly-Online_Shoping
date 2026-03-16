@@ -11,28 +11,38 @@ namespace B3ly.BLL.Repositories
         private readonly ApplicationDbContext _db;
         public ProductRepository(ApplicationDbContext db) => _db = db;
 
-        public async Task<PaginatedList<ProductVM>> GetProductsAsync(int? categoryId, string? search, string? sort, int page, int pageSize)
+        public async Task<PaginatedList<ProductVM>> GetProductsAsync(int? categoryId, string? search, string? sort, int page, int pageSize,
+            decimal? minPrice = null, decimal? maxPrice = null, bool includeInactive = false)
         {
             var query = _db.Products
                 .Include(p => p.Category)
-                .Where(p => p.IsActive)
                 .AsQueryable();
 
+            if (!includeInactive)
+                query = query.Where(p => p.IsActive);
+
             if (categoryId.HasValue)
-                query = query.Where(p => p.CategoryId == categoryId.Value
-                                      || p.Category.ParentCategoryId == categoryId.Value);
+                query = query.Where(p => p.CategoryId == categoryId.Value);
 
             if (!string.IsNullOrWhiteSpace(search))
                 query = query.Where(p => p.Name.Contains(search)
                                       || (p.Description != null && p.Description.Contains(search)));
 
+            if (minPrice.HasValue)
+                query = query.Where(p => p.Price >= minPrice.Value);
+
+            if (maxPrice.HasValue)
+                query = query.Where(p => p.Price <= maxPrice.Value);
+
             query = sort switch
             {
-                "price_asc"  => query.OrderBy(p => p.Price),
-                "price_desc" => query.OrderByDescending(p => p.Price),
-                "name_asc"   => query.OrderBy(p => p.Name),
-                "newest"     => query.OrderByDescending(p => p.CreatedAt),
-                _            => query.OrderBy(p => p.Name)
+                "price_asc"   => query.OrderBy(p => p.Price),
+                "price_desc"  => query.OrderByDescending(p => p.Price),
+                "name_asc"    => query.OrderBy(p => p.Name),
+                "newest"      => query.OrderByDescending(p => p.CreatedAt),
+                "stock_asc"   => query.OrderBy(p => p.StockQuantity),
+                "stock_desc"  => query.OrderByDescending(p => p.StockQuantity),
+                _             => query.OrderBy(p => p.Name)
             };
 
             var total = await query.CountAsync();
@@ -108,13 +118,21 @@ namespace B3ly.BLL.Repositories
 
         public async Task DeleteAsync(int id)
         {
+            // Soft delete: deactivate instead of removing from the database
             var p = await _db.Products.FindAsync(id);
-            if (p != null) { _db.Products.Remove(p); await _db.SaveChangesAsync(); }
+            if (p != null) { p.IsActive = false; await _db.SaveChangesAsync(); }
         }
 
         public async Task<bool> SKUExistsAsync(string sku, int? excludeId = null)
         {
             var q = _db.Products.Where(p => p.SKU == sku);
+            if (excludeId.HasValue) q = q.Where(p => p.ProductId != excludeId.Value);
+            return await q.AnyAsync();
+        }
+
+        public async Task<bool> NameExistsInCategoryAsync(string name, int categoryId, int? excludeId = null)
+        {
+            var q = _db.Products.Where(p => p.Name == name && p.CategoryId == categoryId);
             if (excludeId.HasValue) q = q.Where(p => p.ProductId != excludeId.Value);
             return await q.AnyAsync();
         }
