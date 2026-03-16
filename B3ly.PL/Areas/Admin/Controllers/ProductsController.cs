@@ -24,7 +24,7 @@ namespace B3ly.PL.Areas.Admin.Controllers
             string? search, int? categoryId, decimal? minPrice, decimal? maxPrice,
             string? sort, int page = 1)
         {
-            const int pageSize = 20;
+            const int pageSize = 6;
             var result = await _products.GetProductsAsync(
                 categoryId, search, sort, page, pageSize,
                 minPrice, maxPrice, includeInactive: true);

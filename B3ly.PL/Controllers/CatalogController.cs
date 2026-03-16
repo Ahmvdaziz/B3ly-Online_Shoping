@@ -17,7 +17,7 @@ namespace B3ly.PL.Controllers
 
         public async Task<IActionResult> Index(int? categoryId, string? q, string? sort, decimal? minPrice, decimal? maxPrice, int page = 1)
         {
-            const int pageSize = 12;
+            const int pageSize = 6;
             var result     = await _products.GetProductsAsync(categoryId, q, sort, page, pageSize, minPrice, maxPrice);
             var categories = await _categories.GetAllAsync();
 
