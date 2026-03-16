@@ -33,6 +33,8 @@ namespace B3ly.BLL.Interfaces
         Task DeleteAsync(int id);
         /// <summary>Returns true if the category has products (safe-delete guard).</summary>
         Task<bool> HasProductsAsync(int id);
+        /// <summary>Returns true if a category with this name already exists (case-insensitive), optionally excluding one ID for edit.</summary>
+        Task<bool> NameExistsAsync(string name, int? excludeId = null);
     }
 
     public interface IOrderRepository

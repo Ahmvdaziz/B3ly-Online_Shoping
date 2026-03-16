@@ -21,6 +21,11 @@ namespace B3ly.PL.Areas.Admin.Controllers
         public async Task<IActionResult> Create(CreateCategoryVM vm)
         {
             if (!ModelState.IsValid) return View(vm);
+            if (await _categories.NameExistsAsync(vm.Name))
+            {
+                ModelState.AddModelError(nameof(vm.Name), "A category with this name already exists.");
+                return View(vm);
+            }
             await _categories.AddAsync(new Category { Name = vm.Name });
             TempData["Success"] = "Category created successfully.";
             return RedirectToAction("Index");
@@ -39,6 +44,11 @@ namespace B3ly.PL.Areas.Admin.Controllers
             if (!ModelState.IsValid) return View(vm);
             var cat = await _categories.GetEntityByIdAsync(id);
             if (cat == null) return NotFound();
+            if (await _categories.NameExistsAsync(vm.Name, excludeId: id))
+            {
+                ModelState.AddModelError(nameof(vm.Name), "A category with this name already exists.");
+                return View(vm);
+            }
             cat.Name = vm.Name;
             await _categories.UpdateAsync(cat);
             TempData["Success"] = "Category updated.";

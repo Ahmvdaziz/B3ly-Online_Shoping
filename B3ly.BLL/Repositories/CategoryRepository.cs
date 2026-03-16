@@ -52,6 +52,11 @@ namespace B3ly.BLL.Repositories
 
         public async Task<bool> HasProductsAsync(int id) =>
             await _db.Products.AnyAsync(p => p.CategoryId == id);
+
+        public async Task<bool> NameExistsAsync(string name, int? excludeId = null) =>
+            await _db.Categories.AnyAsync(c =>
+                c.Name.ToLower() == name.ToLower() &&
+                (excludeId == null || c.CategoryId != excludeId));
     }
 }
 
