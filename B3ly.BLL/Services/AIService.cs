@@ -19,173 +19,220 @@ namespace B3ly.BLL.Services
             _http      = http;
             _products  = products;
             _analytics = analytics;
-            _model     = config["Ollama:Model"] ?? "phi3";
+            _model     = config["Ollama:Model"] ?? "phi3:mini";
             _endpoint  = (config["Ollama:BaseUrl"] ?? "http://localhost:11434").TrimEnd('/') + "/api/generate";
         }
 
         public async Task<string> AskAsync(string question, string userId, string userRole)
         {
-            // Route based on role and question type
-            if (userRole == "Admin" && AIPromptBuilder.IsAnalyticsQuestion(question))
-            {
-                return await HandleAdminAnalyticsAsync(question);
-            }
-
-            // Customer or general question → use product RAG
-            return await HandleCustomerProductAsync(question, userRole);
-        }
-
-        private async Task<string> HandleAdminAnalyticsAsync(string question)
-        {
             try
             {
-                // Query database for business data
-                var context = await BuildAnalyticsContextAsync(question);
+                // ── SECURITY CHECK: Validate question is allowed for user role
+                var securityError = AIPromptBuilder.ValidateQuestionForRole(question, userRole);
+                if (securityError != null)
+                    return securityError;
 
-                // Build admin-specific prompt
-                var prompt = AIPromptBuilder.BuildAdminPrompt(question, context);
-                var systemPrompt = AIPromptBuilder.GetSystemPrompt("Admin");
+                // ── SMART ROUTING: Admin analytics questions handled in backend
+                if (userRole == "Admin" && AIPromptBuilder.IsAnalyticsQuestion(question))
+                {
+                    return await HandleAdminAnalyticsAsync(question, userRole);
+                }
 
-                return await CallOllamaAsync(prompt, systemPrompt);
+                // ── Customer product discovery or general questions
+                return await HandleCustomerProductAsync(question, userRole);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return $"❌ {ex.Message}";
             }
             catch (Exception ex)
             {
-                return $"Error processing analytics: {ex.Message}";
+                return $"⚠️ Error: {ex.Message}";
             }
         }
 
+        /// <summary>
+        /// Handles admin analytics questions - NO LLM CALL for pure data queries.
+        /// Only sends formatted summary to LLM if explanation is needed.
+        /// </summary>
+        private async Task<string> HandleAdminAnalyticsAsync(string question, string userRole)
+        {
+            // Query database for business data (not LLM)
+            var context = await BuildAnalyticsContextAsync(question, userRole);
+
+            // If we got meaningful analytics data, optionally explain via LLM or return direct
+            // For pure data questions, we can return directly without LLM
+            if (IsDirectDataQuery(question))
+            {
+                return FormatDirectAnalyticsResponse(context, question);
+            }
+
+            // For questions seeking insight/analysis, use LLM to explain the data
+            var prompt = AIPromptBuilder.BuildAdminPrompt(question, context);
+            var systemPrompt = AIPromptBuilder.GetSystemPrompt("Admin");
+
+            return await CallOllamaAsync(prompt, systemPrompt);
+        }
+
+        /// <summary>
+        /// Handles customer product discovery - uses LLM with minimal product context.
+        /// Only sends 3-5 most relevant products (NOT full database).
+        /// </summary>
         private async Task<string> HandleCustomerProductAsync(string question, string userRole)
         {
-            try
-            {
-                // Extract keyword and fetch relevant products
-                var keyword = AIPromptBuilder.ExtractKeyword(question);
-                var relevant = (await _products.GetForAIContextAsync(keyword, limit: 5)).ToList();
+            // Extract keyword and fetch ONLY relevant products
+            var keyword = AIPromptBuilder.ExtractKeyword(question);
+            var relevant = (await _products.GetForAIContextAsync(keyword, limit: 5)).ToList();
 
-                // Supplement with general products if needed
-                if (relevant.Count < 3)
-                {
-                    var general = await _products.GetForAIContextAsync(keyword: null, limit: 6);
-                    relevant = relevant
-                        .Concat(general)
-                        .DistinctBy(p => p.Name)
-                        .Take(6)
-                        .ToList();
-                }
-
-                // Build customer prompt
-                var prompt = AIPromptBuilder.BuildCustomerPrompt(question, relevant);
-                var systemPrompt = AIPromptBuilder.GetSystemPrompt(userRole);
-
-                return await CallOllamaAsync(prompt, systemPrompt);
-            }
-            catch (HttpRequestException)
+            // Supplement only if necessary (max 5 total)
+            if (relevant.Count < 3)
             {
-                return "⚠️ Could not connect to Ollama. Make sure it is running: run 'ollama serve' in a terminal.";
+                var general = await _products.GetForAIContextAsync(keyword: null, limit: 3);
+                relevant = relevant
+                    .Concat(general)
+                    .DistinctBy(p => p.Name)
+                    .Take(5)
+                    .ToList();
             }
-            catch (TaskCanceledException)
-            {
-                return "⚠️ Request timed out. The model is loading — please try again.";
-            }
+
+            // Build minimal prompt with only filtered products
+            var prompt = AIPromptBuilder.BuildCustomerPrompt(question, relevant);
+            var systemPrompt = AIPromptBuilder.GetSystemPrompt(userRole);
+
+            return await CallOllamaAsync(prompt, systemPrompt);
         }
 
-        private async Task<AdminAnalyticsContext> BuildAnalyticsContextAsync(string question)
+        /// <summary>
+        /// Builds analytics context by querying database based on question keywords.
+        /// </summary>
+        private async Task<AdminAnalyticsContext> BuildAnalyticsContextAsync(string question, string userRole)
         {
             var lowerQ = question.ToLower();
             var context = new AdminAnalyticsContext();
 
-            // Determine which analytics to fetch based on keywords
-            if (lowerQ.Contains("today"))
+            try
             {
-                var sales = await _analytics.GetTodaySalesAsync();
-                context.SalesData = FormatSalesData("Today's Sales", sales);
-            }
-            else if (lowerQ.Contains("week"))
-            {
-                var sales = await _analytics.GetWeeklySalesAsync();
-                context.SalesData = FormatSalesData("Weekly Sales", sales);
-            }
-            else if (lowerQ.Contains("month"))
-            {
-                var sales = await _analytics.GetMonthlySalesAsync();
-                context.SalesData = FormatSalesData("Monthly Sales", sales);
-            }
+                // Query sales data based on keywords
+                if (lowerQ.Contains("today"))
+                {
+                    var sales = await _analytics.GetTodaySalesAsync(userRole);
+                    context.SalesData = $"TODAY'S SALES\nRevenue: ${sales.TotalSales:F2}\nOrders: {sales.OrderCount}\nItems Sold: {sales.ItemsSold}";
+                }
+                else if (lowerQ.Contains("week"))
+                {
+                    var sales = await _analytics.GetWeeklySalesAsync(userRole);
+                    context.SalesData = $"THIS WEEK'S SALES\nRevenue: ${sales.TotalSales:F2}\nOrders: {sales.OrderCount}\nItems Sold: {sales.ItemsSold}";
+                }
+                else if (lowerQ.Contains("month"))
+                {
+                    var sales = await _analytics.GetMonthlySalesAsync(userRole);
+                    context.SalesData = $"THIS MONTH'S SALES\nRevenue: ${sales.TotalSales:F2}\nOrders: {sales.OrderCount}\nItems Sold: {sales.ItemsSold}";
+                }
 
-            if (lowerQ.Contains("top") || lowerQ.Contains("best selling"))
-            {
-                var topProducts = await _analytics.GetTopSellingProductsAsync(5);
-                context.ProductData = FormatTopProducts(topProducts);
-            }
+                // Top products data
+                if (lowerQ.Contains("top") || lowerQ.Contains("best selling"))
+                {
+                    var topProducts = await _analytics.GetTopSellingProductsAsync(5, userRole);
+                    if (topProducts.Any())
+                    {
+                        context.ProductData = "TOP 5 PRODUCTS\n" + string.Join("\n", 
+                            topProducts.Select(p => $"• {p.Name}: {p.TotalSold} sold (${p.Revenue:F2})"));
+                    }
+                }
 
-            if (lowerQ.Contains("stock") || lowerQ.Contains("inventory"))
-            {
-                var stock = await _analytics.GetStockSummaryAsync();
-                context.StockData = FormatStockSummary(stock);
-            }
+                // Stock/inventory data
+                if (lowerQ.Contains("stock") || lowerQ.Contains("inventory"))
+                {
+                    var stock = await _analytics.GetStockSummaryAsync(userRole);
+                    context.StockData = $"INVENTORY STATUS\nTotal Products: {stock.TotalProducts}\nIn Stock: {stock.InStock}\nLow Stock (<= 10): {stock.LowStock}\nOut of Stock: {stock.OutOfStock}\nTotal Value: ${stock.StockValue:F2}";
+                }
 
-            if (lowerQ.Contains("order"))
+                // Order count data
+                if (lowerQ.Contains("order count") || lowerQ.Contains("total order"))
+                {
+                    var orderCount = await _analytics.GetTotalOrdersAsync(null, null, userRole);
+                    context.SalesData = $"TOTAL ORDERS (ALL TIME): {orderCount}";
+                }
+            }
+            catch (UnauthorizedAccessException)
             {
-                var orderCount = await _analytics.GetTotalOrdersAsync();
-                context.SalesData = $"Total Orders: {orderCount}";
+                throw; // Re-throw security exceptions
             }
 
             return context;
         }
 
-        private static string FormatSalesData(string period, AdminAnalytics analytics)
+        /// <summary>
+        /// Determines if a question is asking for raw data (not interpretation).
+        /// </summary>
+        private static bool IsDirectDataQuery(string question)
         {
-            return $@"{period}:
-  • Total Sales: ${analytics.TotalSales:F2}
-  • Orders: {analytics.OrderCount}
-  • Items Sold: {analytics.ItemsSold}";
+            var lowerQ = question.ToLower();
+            // Questions that just want numbers, not interpretation
+            return lowerQ.Contains("how much") || lowerQ.Contains("how many") || 
+                   lowerQ.Contains("count") || lowerQ.Contains("total");
         }
 
-        private static string FormatTopProducts(List<TopProductDto> products)
+        /// <summary>
+        /// Returns formatted analytics data directly without LLM call.
+        /// </summary>
+        private static string FormatDirectAnalyticsResponse(AdminAnalyticsContext context, string question)
         {
-            if (products.Count == 0) return "No sales data available.";
+            var parts = new List<string>();
 
-            var lines = new[] { "Top Selling Products:" }
-                .Concat(products.Select((p, i) => $"  {i + 1}. {p.Name}: {p.TotalSold} sold (${p.Revenue:F2})"))
-                .ToArray();
+            if (!string.IsNullOrEmpty(context.SalesData))
+                parts.Add(context.SalesData);
 
-            return string.Join("\n", lines);
+            if (!string.IsNullOrEmpty(context.ProductData))
+                parts.Add(context.ProductData);
+
+            if (!string.IsNullOrEmpty(context.StockData))
+                parts.Add(context.StockData);
+
+            return parts.Count > 0 
+                ? string.Join("\n\n", parts)
+                : "No data available for your query.";
         }
 
-        private static string FormatStockSummary(StockSummary stock)
-        {
-            return $@"Inventory Status:
-  • Total Products: {stock.TotalProducts}
-  • In Stock: {stock.InStock}
-  • Low Stock: {stock.LowStock}
-  • Out of Stock: {stock.OutOfStock}
-  • Total Value: ${stock.StockValue:F2}
-  • Stock Health: {(stock.OutOfStock == 0 ? "✅ Good" : $"⚠️ {stock.OutOfStock} items unavailable")}";
-        }
-
+        /// <summary>
+        /// Calls Ollama with strict timeout and minimal token usage.
+        /// </summary>
         private async Task<string> CallOllamaAsync(string prompt, string systemPrompt)
         {
             var payload = new { model = _model, system = systemPrompt, prompt, stream = false };
 
-            var response = await _http.PostAsJsonAsync(_endpoint, payload);
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                var response = await _http.PostAsJsonAsync(_endpoint, payload);
+                response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync();
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("response").GetString()
-                   ?? "I could not generate a response. Please try again.";
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                return doc.RootElement.GetProperty("response").GetString()
+                       ?? "Could not generate response.";
+            }
+            catch (HttpRequestException)
+            {
+                return "⚠️ Cannot connect to Ollama. Ensure 'ollama serve' is running.";
+            }
+            catch (TaskCanceledException)
+            {
+                return "⚠️ Request timed out. Model may be loading.";
+            }
         }
 
         public async Task WarmUpAsync()
         {
             try
             {
-                var payload = new { model = _model, prompt = "hello", stream = false };
+                var payload = new { model = _model, prompt = ".", stream = false };
                 await _http.PostAsJsonAsync(_endpoint, payload);
             }
             catch
             {
-                // Non-fatal
+                // Warm-up failures are non-fatal
             }
         }
     }
 }
+

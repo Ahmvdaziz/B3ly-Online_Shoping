@@ -2,6 +2,13 @@ namespace B3ly.BLL.Interfaces
 {
     public interface IAIService
     {
+        /// <summary>
+        /// Ask the AI assistant a question with role-based access control.
+        /// </summary>
+        /// <param name="question">The user's question</param>
+        /// <param name="userId">The user's ID</param>
+        /// <param name="userRole">The user's role (Admin or Customer)</param>
+        /// <returns>The AI response or an error message</returns>
         Task<string> AskAsync(string question, string userId, string userRole);
 
         /// <summary>
@@ -13,12 +20,12 @@ namespace B3ly.BLL.Interfaces
 
     public interface IAdminAnalyticsService
     {
-        Task<AdminAnalytics> GetTodaySalesAsync();
-        Task<AdminAnalytics> GetWeeklySalesAsync();
-        Task<AdminAnalytics> GetMonthlySalesAsync();
-        Task<List<TopProductDto>> GetTopSellingProductsAsync(int limit = 5);
-        Task<StockSummary> GetStockSummaryAsync();
-        Task<int> GetTotalOrdersAsync(DateTime? from = null, DateTime? to = null);
+        Task<AdminAnalytics> GetTodaySalesAsync(string userRole);
+        Task<AdminAnalytics> GetWeeklySalesAsync(string userRole);
+        Task<AdminAnalytics> GetMonthlySalesAsync(string userRole);
+        Task<List<TopProductDto>> GetTopSellingProductsAsync(int limit, string userRole);
+        Task<StockSummary> GetStockSummaryAsync(string userRole);
+        Task<int> GetTotalOrdersAsync(DateTime? from, DateTime? to, string userRole);
     }
 
     public class AdminAnalytics

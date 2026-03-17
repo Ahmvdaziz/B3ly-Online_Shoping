@@ -7,16 +7,13 @@ namespace B3ly.BLL.Services
     {
         private const string AdminSystemPrompt =
             "You are a business intelligence AI assistant for B3ly online store. " +
-            "You will receive structured business data (sales, inventory, orders). " +
-            "Analyze this data and provide actionable insights in a professional, concise manner. " +
-            "Always use exact numbers. Format responses with clear sections and bullet points.";
+            "Analyze the provided business data and give concise, actionable insights. " +
+            "Always use exact numbers. Keep responses brief and professional.";
 
         private const string CustomerSystemPrompt =
             "You are a helpful shopping assistant for B3ly online store. " +
-            "You will be given the current product catalog. " +
-            "Use ONLY the products listed in the context to answer customer questions. " +
-            "Always mention exact prices and stock availability. " +
-            "Be friendly, concise, and focus on helping customers find what they need.";
+            "Answer questions based ONLY on the products listed. " +
+            "Keep responses friendly and concise. Mention exact prices and availability.";
 
         private static readonly HashSet<string> Stopwords = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -27,81 +24,109 @@ namespace B3ly.BLL.Services
             "sell","selling","available","currently","product","products","item","items"
         };
 
+        /// <summary>
+        /// Returns the appropriate system prompt based on user role.
+        /// </summary>
         public static string GetSystemPrompt(string userRole) =>
             userRole == "Admin" ? AdminSystemPrompt : CustomerSystemPrompt;
 
-        public static string BuildAdminPrompt(string question, AdminAnalyticsContext context)
+        /// <summary>
+        /// Validates if a question is allowed for the user's role.
+        /// Returns error message if unauthorized, null if authorized.
+        /// </summary>
+        public static string? ValidateQuestionForRole(string question, string userRole)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("=== B3ly Business Intelligence ===\n");
+            if (userRole == "Admin") return null; // Admins can ask anything
 
-            if (!string.IsNullOrEmpty(context.SalesData))
-                sb.AppendLine($"📊 Sales Data:\n{context.SalesData}\n");
+            // Customers cannot ask about sales, revenue, orders, or analytics
+            var blockedKeywords = new[] { "sales", "revenue", "income", "profit", "earnings", "orders count", "order count", "total orders", "analytics", "statistics" };
+            var lowerQ = question.ToLower();
 
-            if (!string.IsNullOrEmpty(context.ProductData))
-                sb.AppendLine($"📦 Product Data:\n{context.ProductData}\n");
-
-            if (!string.IsNullOrEmpty(context.StockData))
-                sb.AppendLine($"📈 Inventory Data:\n{context.StockData}\n");
-
-            sb.AppendLine("=== Question ===");
-            sb.AppendLine(question);
-
-            return sb.ToString();
-        }
-
-        public static string BuildCustomerPrompt(string question, IReadOnlyList<ProductContextVM> products)
-        {
-            var sb = new StringBuilder();
-
-            sb.AppendLine("=== B3ly Store — Current Product Catalog ===");
-
-            if (products.Count == 0)
+            foreach (var keyword in blockedKeywords)
             {
-                sb.AppendLine("  (No products are currently available)");
-            }
-            else
-            {
-                var byCategory = products.GroupBy(p => p.CategoryName);
-                foreach (var group in byCategory)
-                {
-                    sb.AppendLine($"\n[{group.Key}]");
-                    foreach (var p in group)
-                    {
-                        var stock = p.StockQuantity > 0
-                            ? $"in stock: {p.StockQuantity}"
-                            : "out of stock";
-
-                        var desc = string.IsNullOrWhiteSpace(p.Description)
-                            ? string.Empty
-                            : $" — {p.Description.Trim()}";
-
-                        sb.AppendLine($"  • {p.Name} | ${p.Price:F2} | {stock}{desc}");
-                    }
-                }
+                if (lowerQ.Contains(keyword))
+                    return "You are not authorized to access this data.";
             }
 
-            sb.AppendLine("\n=== Question ===");
-            sb.AppendLine(question);
-
-            return sb.ToString();
+            return null; // Authorized
         }
 
-        public static string? ExtractKeyword(string question)
-        {
-            var words = question.Split(new[] { ' ', ',', '.', '?', '!' }, StringSplitOptions.RemoveEmptyEntries)
-                .Where(w => !Stopwords.Contains(w) && w.Length > 2)
-                .OrderByDescending(w => w.Length)
-                .FirstOrDefault();
-
-            return words?.ToLower();
-        }
-
+        /// <summary>
+        /// Detects if a question is about analytics/sales (should be handled by backend, not LLM).
+        /// </summary>
         public static bool IsAnalyticsQuestion(string question)
         {
             var lowerQ = question.ToLower();
             var keywords = new[] { "total", "sales", "revenue", "stock", "inventory", "selling", "top", "order", "count", "percentage", "low", "out of stock" };
             return keywords.Any(k => lowerQ.Contains(k));
+        }
+
+        /// <summary>
+        /// Builds an admin prompt with minimal, focused data (no full database dump).
+        /// </summary>
+        public static string BuildAdminPrompt(string question, AdminAnalyticsContext context)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("BUSINESS DATA:");
+
+            if (!string.IsNullOrEmpty(context.SalesData))
+                sb.AppendLine(context.SalesData);
+
+            if (!string.IsNullOrEmpty(context.ProductData))
+                sb.AppendLine(context.ProductData);
+
+            if (!string.IsNullOrEmpty(context.StockData))
+                sb.AppendLine(context.StockData);
+
+            sb.AppendLine("\nQUESTION: " + question);
+            sb.AppendLine("INSTRUCTIONS: Provide a concise, data-driven answer with exact numbers. Keep it brief (2-3 sentences max).");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Builds a customer prompt with filtered products only (NOT full database).
+        /// Limits to 3-5 most relevant products for performance.
+        /// </summary>
+        public static string BuildCustomerPrompt(string question, IReadOnlyList<ProductContextVM> products)
+        {
+            // Only send top 3-5 products, not all
+            var filteredProducts = products.Take(5).ToList();
+
+            var sb = new StringBuilder();
+            sb.AppendLine("AVAILABLE PRODUCTS:");
+
+            if (filteredProducts.Count == 0)
+            {
+                sb.AppendLine("(No matching products)");
+            }
+            else
+            {
+                foreach (var p in filteredProducts)
+                {
+                    var stock = p.StockQuantity > 0 ? "✓ In stock" : "✗ Out of stock";
+                    sb.AppendLine($"• {p.Name} | ${p.Price:F2} | {stock}");
+                }
+            }
+
+            sb.AppendLine("\nQUESTION: " + question);
+            sb.AppendLine("INSTRUCTIONS: Answer based ONLY on the products listed above. Keep response brief (2-3 sentences). Mention exact prices if recommending.");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Extracts the most meaningful keyword for database searches.
+        /// </summary>
+        public static string? ExtractKeyword(string question)
+        {
+            var words = question
+                .Split(new[] { ' ', ',', '.', '?', '!' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => !Stopwords.Contains(w) && w.Length > 2)
+                .OrderByDescending(w => w.Length)
+                .FirstOrDefault();
+
+            return words?.ToLower();
         }
     }
 

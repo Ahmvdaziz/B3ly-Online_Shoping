@@ -11,22 +11,34 @@ namespace B3ly.BLL.Services
 
         public AdminAnalyticsService(ApplicationDbContext db) => _db = db;
 
-        public async Task<AdminAnalytics> GetTodaySalesAsync()
+        /// <summary>
+        /// Validates that the user is an admin. Throws UnauthorizedAccessException if not.
+        /// </summary>
+        private void ValidateAdminAccess(string userRole)
         {
-            var today = DateTime.UtcNow.Date;
+            if (userRole != "Admin")
+                throw new UnauthorizedAccessException("You are not authorized to access this data.");
+        }
+
+        public async Task<AdminAnalytics> GetTodaySalesAsync(string userRole)
+        {
+            ValidateAdminAccess(userRole);
+            var today = DateTime.Today; // Use DateTime.Today for accurate date filtering
             return await GetSalesAsync(today, today.AddDays(1));
         }
 
-        public async Task<AdminAnalytics> GetWeeklySalesAsync()
+        public async Task<AdminAnalytics> GetWeeklySalesAsync(string userRole)
         {
-            var today = DateTime.UtcNow;
+            ValidateAdminAccess(userRole);
+            var today = DateTime.Today;
             var weekStart = today.AddDays(-(int)today.DayOfWeek);
             return await GetSalesAsync(weekStart, today.AddDays(1));
         }
 
-        public async Task<AdminAnalytics> GetMonthlySalesAsync()
+        public async Task<AdminAnalytics> GetMonthlySalesAsync(string userRole)
         {
-            var today = DateTime.UtcNow;
+            ValidateAdminAccess(userRole);
+            var today = DateTime.Today;
             var monthStart = new DateTime(today.Year, today.Month, 1);
             var monthEnd = monthStart.AddMonths(1);
             return await GetSalesAsync(monthStart, monthEnd);
@@ -35,11 +47,11 @@ namespace B3ly.BLL.Services
         private async Task<AdminAnalytics> GetSalesAsync(DateTime from, DateTime to)
         {
             var orders = await _db.Orders
-                .Where(o => o.OrderDate >= from && o.OrderDate < to)
+                .Where(o => o.OrderDate.Date >= from && o.OrderDate.Date < to)
                 .ToListAsync();
 
             var items = await _db.OrderItems
-                .Where(oi => oi.Order.OrderDate >= from && oi.Order.OrderDate < to)
+                .Where(oi => oi.Order.OrderDate.Date >= from && oi.Order.OrderDate.Date < to)
                 .ToListAsync();
 
             return new AdminAnalytics
@@ -51,8 +63,10 @@ namespace B3ly.BLL.Services
             };
         }
 
-        public async Task<List<TopProductDto>> GetTopSellingProductsAsync(int limit = 5)
+        public async Task<List<TopProductDto>> GetTopSellingProductsAsync(int limit, string userRole)
         {
+            ValidateAdminAccess(userRole);
+
             return await _db.OrderItems
                 .GroupBy(oi => new { oi.ProductId, oi.ProductName })
                 .Select(g => new TopProductDto
@@ -66,8 +80,10 @@ namespace B3ly.BLL.Services
                 .ToListAsync();
         }
 
-        public async Task<StockSummary> GetStockSummaryAsync()
+        public async Task<StockSummary> GetStockSummaryAsync(string userRole)
         {
+            ValidateAdminAccess(userRole);
+
             var products = await _db.Products.Where(p => p.IsActive).ToListAsync();
 
             return new StockSummary
@@ -80,12 +96,14 @@ namespace B3ly.BLL.Services
             };
         }
 
-        public async Task<int> GetTotalOrdersAsync(DateTime? from = null, DateTime? to = null)
+        public async Task<int> GetTotalOrdersAsync(DateTime? from, DateTime? to, string userRole)
         {
+            ValidateAdminAccess(userRole);
+
             var query = _db.Orders.AsQueryable();
 
-            if (from.HasValue) query = query.Where(o => o.OrderDate >= from);
-            if (to.HasValue) query = query.Where(o => o.OrderDate < to);
+            if (from.HasValue) query = query.Where(o => o.OrderDate.Date >= from.Value.Date);
+            if (to.HasValue) query = query.Where(o => o.OrderDate.Date < to.Value.Date);
 
             return await query.CountAsync();
         }
