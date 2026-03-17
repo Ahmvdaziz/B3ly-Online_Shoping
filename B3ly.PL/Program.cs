@@ -46,6 +46,7 @@ builder.Services.AddScoped<IAddressRepository, AddressRepository>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IAdminAnalyticsService, AdminAnalyticsService>();
 builder.Services.AddHttpContextAccessor();
 
 // AI Service — typed HttpClient; timeout is read from Ollama:TimeoutSeconds (default 5 min)
