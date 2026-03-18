@@ -135,7 +135,7 @@ namespace B3ly.PL.Controllers
             }
 
             // 3) Card payment → store pending address in session and redirect to Stripe
-            if (vm.PaymentMethod == PaymentMethod.Card)
+            if (vm.PaymentMethod == B3ly.DAL.Models.PaymentMethod.Card)
             {
                 HttpContext.Session.SetInt32("B3ly_PendingAddr", addressId);
                 return RedirectToAction("Checkout", "Payment");
@@ -154,6 +154,7 @@ namespace B3ly.PL.Controllers
                     ShippingAddressId = addressId,
                     OrderNumber       = $"B3LY-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                     Status            = OrderStatus.Pending,
+                    PaymentMethod     = vm.PaymentMethod == B3ly.DAL.Models.PaymentMethod.Card ? B3ly.DAL.Models.PaymentMethod.Card : B3ly.DAL.Models.PaymentMethod.Cash,
                     OrderDate         = DateTime.UtcNow,
                     TotalAmount       = liveTotal
                 };
@@ -228,6 +229,7 @@ namespace B3ly.PL.Controllers
                     ShippingAddressId = addressId!.Value,
                     OrderNumber       = $"B3LY-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                     Status            = OrderStatus.Pending,
+                    PaymentMethod     = B3ly.DAL.Models.PaymentMethod.Card,
                     OrderDate         = DateTime.UtcNow,
                     TotalAmount       = liveTotal
                 };

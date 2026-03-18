@@ -9,6 +9,12 @@ namespace B3ly.DAL.Models
         Cancelled = 4
     }
 
+    public enum PaymentMethod
+    {
+        Cash = 0,
+        Card = 1
+    }
+
     public class Order
     {
         public int OrderId { get; set; }
@@ -16,6 +22,7 @@ namespace B3ly.DAL.Models
         public int ShippingAddressId { get; set; }
         public string OrderNumber { get; set; } = string.Empty;
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
+        public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         public decimal TotalAmount { get; set; }
 

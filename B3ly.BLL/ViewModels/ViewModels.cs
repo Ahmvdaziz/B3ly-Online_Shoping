@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using B3ly.DAL.Models;
 
 namespace B3ly.BLL.ViewModels
 {
@@ -96,8 +97,6 @@ namespace B3ly.BLL.ViewModels
     }
 
     // ── Checkout ─────────────────────────────────────────────────────────────
-    public enum PaymentMethod { Cash, Card }
-
     public class CheckoutVM
     {
         public CartVM Cart { get; set; } = new();

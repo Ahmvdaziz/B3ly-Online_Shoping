@@ -84,7 +84,17 @@ namespace B3ly.BLL.Repositories
         public async Task UpdateStatusAsync(int orderId, OrderStatus status)
         {
             var order = await _db.Orders.FindAsync(orderId);
-            if (order != null) { order.Status = status; await _db.SaveChangesAsync(); }
+            if (order != null)
+            {
+                // Prevent status updates on cancelled orders
+                if (order.Status == OrderStatus.Cancelled)
+                {
+                    throw new InvalidOperationException("Cannot update status of a cancelled order.");
+                }
+
+                order.Status = status;
+                await _db.SaveChangesAsync();
+            }
         }
 
         /// <summary>
@@ -125,7 +135,12 @@ namespace B3ly.BLL.Repositories
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return (true, "Order cancelled successfully. Your refund will be processed within 5–7 business days.");
+                // Return different message based on payment method
+                var refundMessage = order.PaymentMethod == B3ly.DAL.Models.PaymentMethod.Card
+                    ? "Order cancelled successfully. Your refund will be processed within 5–7 business days."
+                    : "Order cancelled successfully. Stock has been restored.";
+
+                return (true, refundMessage);
             }
             catch (Exception ex)
             {
