@@ -79,7 +79,8 @@
                     <!-- Cancel Button -->
                     @if (Model.Status == "Pending" || Model.Status == "Processing")
                     {
-                        <form method="post" asp-action="CancelOrder" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                        <form method="post" asp-action="CancelOrder" asp-route-id="@Model.OrderId" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                            @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-danger btn-sm w-100">
                                 <i class="bi bi-x-circle me-1"></i>Cancel Order
                             </button>
