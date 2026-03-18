@@ -1,0 +1,205 @@
+@model B3ly.BLL.ViewModels.AdminDashboardVM
+@{
+    ViewData["Title"] = "Admin Dashboard";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid py-4">
+    <h1 class="mb-4">📊 Admin Dashboard</h1>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Key Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-start border-success border-5 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted small mb-1">Today's Sales</p>
+                            <h3 class="mb-0 text-success">$@Model.TodaysSales.ToString("F2")</h3>
+                            <small class="text-muted">@Model.TodaysOrderCount order(s)</small>
+                        </div>
+                        <i class="bi bi-currency-dollar fs-2 text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-start border-info border-5 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted small mb-1">Total Orders</p>
+                            <h3 class="mb-0 text-info">@Model.TotalOrdersAllTime</h3>
+                            <small class="text-muted">All time</small>
+                        </div>
+                        <i class="bi bi-bag-check fs-2 text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-start border-warning border-5 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted small mb-1">Total Products</p>
+                            <h3 class="mb-0 text-warning">@Model.TotalProducts</h3>
+                            <small class="text-muted">Inventory value: $@Model.TotalInventoryValue.ToString("F2")</small>
+                        </div>
+                        <i class="bi bi-box fs-2 text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-3">
+            <div class="card border-start border-danger border-5 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted small mb-1">Stock Status</p>
+                            <h3 class="mb-0">
+                                <span class="text-success">@Model.InStockCount</span>
+                                <span class="text-danger">/@Model.OutOfStockCount</span>
+                            </h3>
+                            <small class="text-muted">In stock / Out of stock</small>
+                        </div>
+                        <i class="bi bi-exclamation-triangle fs-2 text-danger opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Top Selling Products -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-fire me-2"></i>Top Selling Products</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.TopSellingProducts.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th>Product</th>
+                                        <th class="text-end">Sold</th>
+                                        <th class="text-end">Revenue</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var product in Model.TopSellingProducts)
+                                    {
+                                        <tr>
+                                            <td class="fw-bold">@product.Name</td>
+                                            <td class="text-end">@product.TotalSold units</td>
+                                            <td class="text-end text-success fw-bold">$@product.Revenue.ToString("F2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center py-3">No sales data available yet.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Products -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-circle me-2"></i>Low Stock Products</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.LowStockProducts.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th>Product</th>
+                                        <th class="text-center">Stock</th>
+                                        <th class="text-end">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var product in Model.LowStockProducts)
+                                    {
+                                        var badgeClass = product.CurrentStock <= 2 ? "bg-danger" : "bg-warning text-dark";
+                                        <tr>
+                                            <td>
+                                                <strong>@product.Name</strong><br>
+                                                <small class="text-muted">@product.CategoryName</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge @badgeClass">@product.CurrentStock</span>
+                                            </td>
+                                            <td class="text-end">$@product.Price.ToString("F2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center py-3">All products have good stock levels.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body d-flex gap-2 flex-wrap">
+                    <a href="@Url.Action("Index", "Products", new { area = "Admin" })" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Manage Products
+                    </a>
+                    <a href="@Url.Action("Index", "Orders", new { area = "Admin" })" class="btn btn-outline-info">
+                        <i class="bi bi-receipt me-1"></i>View Orders
+                    </a>
+                    <a href="@Url.Action("Index", "Categories", new { area = "Admin" })" class="btn btn-outline-secondary">
+                        <i class="bi bi-tags me-1"></i>Manage Categories
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border-radius: 8px;
+        transition: transform .2s, box-shadow .2s;
+    }
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,.1) !important;
+    }
+    .border-start {
+        border-left: 5px solid !important;
+    }
+</style>

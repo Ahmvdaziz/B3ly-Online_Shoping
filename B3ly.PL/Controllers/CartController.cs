@@ -40,9 +40,26 @@ namespace B3ly.PL.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public IActionResult Update(int productId, int qty)
+        public async Task<IActionResult> Update(int productId, int qty)
         {
+            var product = await _products.GetByIdAsync(productId);
+            if (product == null) return NotFound();
+
+            // Validate quantity against stock
+            if (qty > product.StockQuantity)
+            {
+                TempData["Error"] = $"Only {product.StockQuantity} items available in stock.";
+                return RedirectToAction("Index");
+            }
+
+            if (qty < 1)
+            {
+                TempData["Error"] = "Quantity must be at least 1.";
+                return RedirectToAction("Index");
+            }
+
             _cart.UpdateItem(productId, qty);
+            TempData["Success"] = $"Updated quantity for \"{product.Name}\".";
             return RedirectToAction("Index");
         }
 

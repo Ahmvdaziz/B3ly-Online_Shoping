@@ -87,6 +87,74 @@ namespace B3ly.BLL.Repositories
             if (order != null) { order.Status = status; await _db.SaveChangesAsync(); }
         }
 
+        /// <summary>
+        /// Cancels an order if allowed and restores stock.
+        /// Can only cancel Pending or Processing orders.
+        /// </summary>
+        public async Task<(bool Success, string Message)> CancelOrderAsync(int orderId, string userId)
+        {
+            var order = await _db.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.UserId == userId);
+
+            if (order == null)
+                return (false, "Order not found.");
+
+            // Only allow cancellation for Pending or Processing orders
+            if (order.Status != OrderStatus.Pending && order.Status != OrderStatus.Processing)
+                return (false, $"Cannot cancel order with status '{order.Status}'. Only Pending or Processing orders can be cancelled.");
+
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                // Update order status to Cancelled
+                order.Status = OrderStatus.Cancelled;
+
+                // Restore stock for all items in the order
+                foreach (var item in order.OrderItems)
+                {
+                    var product = await _db.Products.FindAsync(item.ProductId);
+                    if (product != null)
+                    {
+                        product.StockQuantity += item.Quantity;
+                        _db.Products.Update(product);
+                    }
+                }
+
+                _db.Orders.Update(order);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return (true, "Order cancelled successfully. Your refund will be processed within 5–7 business days.");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return (false, $"Error cancelling order: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Gets total sales for today (UTC).
+        /// </summary>
+        public async Task<decimal> GetTodaysSalesAsync()
+        {
+            var today = DateTime.Today;
+            return await _db.Orders
+                .Where(o => o.OrderDate.Date == today && o.Status != OrderStatus.Cancelled)
+                .SumAsync(o => o.TotalAmount);
+        }
+
+        /// <summary>
+        /// Gets total orders count (excluding cancelled).
+        /// </summary>
+        public async Task<int> GetTotalOrdersCountAsync()
+        {
+            return await _db.Orders
+                .Where(o => o.Status != OrderStatus.Cancelled)
+                .CountAsync();
+        }
+
         private static OrderVM ToOrderVM(Order o) => new()
         {
             OrderId        = o.OrderId,

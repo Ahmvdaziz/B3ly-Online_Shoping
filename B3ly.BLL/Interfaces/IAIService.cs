@@ -1,3 +1,5 @@
+using B3ly.BLL.ViewModels;
+
 namespace B3ly.BLL.Interfaces
 {
     public interface IAIService
@@ -34,13 +36,6 @@ namespace B3ly.BLL.Interfaces
         public int OrderCount { get; set; }
         public int ItemsSold { get; set; }
         public DateTime Period { get; set; }
-    }
-
-    public class TopProductDto
-    {
-        public string Name { get; set; }
-        public int TotalSold { get; set; }
-        public decimal Revenue { get; set; }
     }
 
     public class StockSummary

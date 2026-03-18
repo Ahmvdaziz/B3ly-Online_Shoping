@@ -44,6 +44,21 @@ namespace B3ly.BLL.Interfaces
         Task<IEnumerable<AdminOrderVM>> GetAllOrdersAsync(string? search = null, DateTime? from = null, DateTime? to = null);
         Task AddAsync(Order order);
         Task UpdateStatusAsync(int orderId, OrderStatus status);
+
+        /// <summary>
+        /// Cancels an order and restores stock. Returns true if successful.
+        /// </summary>
+        Task<(bool Success, string Message)> CancelOrderAsync(int orderId, string userId);
+
+        /// <summary>
+        /// Gets daily sales total.
+        /// </summary>
+        Task<decimal> GetTodaysSalesAsync();
+
+        /// <summary>
+        /// Gets total orders count.
+        /// </summary>
+        Task<int> GetTotalOrdersCountAsync();
     }
 
     public interface IAddressRepository

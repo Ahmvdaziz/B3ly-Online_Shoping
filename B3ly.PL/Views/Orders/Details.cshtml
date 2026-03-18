@@ -2,6 +2,22 @@
 @{ ViewData["Title"] = $"Order {Model.OrderNumber}"; }
 
 <div class="container py-4">
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold mb-0">Order @Model.OrderNumber</h2>
         @{ var bc = Model.Status switch {
@@ -53,12 +69,33 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <h6 class="fw-bold">Order Info</h6>
-                    <dl class="mb-0">
+                    <dl class="mb-3">
                         <dt class="text-muted small">Date</dt>
                         <dd>@Model.OrderDate.ToString("MMMM dd, yyyy HH:mm")</dd>
                         <dt class="text-muted small">Shipping Address</dt>
                         <dd>@Model.ShippingAddress</dd>
                     </dl>
+
+                    <!-- Cancel Button -->
+                    @if (Model.Status == "Pending" || Model.Status == "Processing")
+                    {
+                        <form method="post" asp-action="CancelOrder" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                            <button type="submit" class="btn btn-danger btn-sm w-100">
+                                <i class="bi bi-x-circle me-1"></i>Cancel Order
+                            </button>
+                        </form>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            You can only cancel Pending or Processing orders.
+                        </small>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info small mb-0" role="alert">
+                            <i class="bi bi-lock me-1"></i>
+                            This order cannot be cancelled (Status: @Model.Status).
+                        </div>
+                    }
                 </div>
             </div>
         </div>

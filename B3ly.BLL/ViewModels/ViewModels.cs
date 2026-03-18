@@ -205,4 +205,35 @@ namespace B3ly.BLL.ViewModels
         public int     StockQuantity { get; set; }
         public string? Description   { get; set; }
     }
+
+    // ── Admin Dashboard ─────────────────────────────────────────────────────
+    public class AdminDashboardVM
+    {
+        public decimal TodaysSales { get; set; }
+        public int TodaysOrderCount { get; set; }
+        public int TotalOrdersAllTime { get; set; }
+        public int TotalProducts { get; set; }
+        public int InStockCount { get; set; }
+        public int LowStockCount { get; set; }
+        public int OutOfStockCount { get; set; }
+        public decimal TotalInventoryValue { get; set; }
+        public List<TopProductDto> TopSellingProducts { get; set; } = new();
+        public List<LowStockProductVM> LowStockProducts { get; set; } = new();
+    }
+
+    public class LowStockProductVM
+    {
+        public int ProductId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int CurrentStock { get; set; }
+        public decimal Price { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
+    }
+
+    public class TopProductDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public int TotalSold { get; set; }
+        public decimal Revenue { get; set; }
+    }
 }

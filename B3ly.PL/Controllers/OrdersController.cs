@@ -273,6 +273,28 @@ namespace B3ly.PL.Controllers
             return View(order);
         }
 
+        /// <summary>
+        /// Allows customer to cancel their order (only if Pending or Processing).
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> CancelOrder(int id)
+        {
+            var userId = _auth.GetCurrentUser()!.Id;
+            var (success, message) = await _orders.CancelOrderAsync(id, userId);
+
+            if (success)
+            {
+                TempData["Success"] = message;
+            }
+            else
+            {
+                TempData["Error"] = message;
+            }
+
+            return RedirectToAction("Details", new { id });
+        }
+
         public IActionResult Success() => View();
     }
 }
+
