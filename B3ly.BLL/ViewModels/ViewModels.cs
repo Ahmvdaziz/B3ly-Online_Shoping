@@ -205,7 +205,14 @@ namespace B3ly.BLL.ViewModels
         public string? Description   { get; set; }
     }
 
-    // ── Admin Dashboard ─────────────────────────────────────────────────────
+    public class TopProductDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public int TotalSold { get; set; }
+        public decimal Revenue { get; set; }
+    }
+
+    // Admin dashboard view models
     public class AdminDashboardVM
     {
         public decimal TodaysSales { get; set; }
@@ -227,12 +234,5 @@ namespace B3ly.BLL.ViewModels
         public int CurrentStock { get; set; }
         public decimal Price { get; set; }
         public string CategoryName { get; set; } = string.Empty;
-    }
-
-    public class TopProductDto
-    {
-        public string Name { get; set; } = string.Empty;
-        public int TotalSold { get; set; }
-        public decimal Revenue { get; set; }
     }
 }
